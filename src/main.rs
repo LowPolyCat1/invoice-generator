@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::BufWriter;
 use num_format::{Locale, ToFormattedString};
 
+
 struct Seller {
     name: String,
     address: String,
@@ -126,7 +127,7 @@ fn generate_invoice_pdf(invoice: &Invoice, filename: &str) -> Result<(), Box<dyn
 
     // Title
     context.use_text_at(&invoice.seller.name, font_size_title, margin_left, context.y);
-    context.y -= Mm(26.0);
+    context.y -= Mm(20.0);
 
     // Right-aligned payment info
     let mut info_y = context.y;
@@ -139,7 +140,7 @@ fn generate_invoice_pdf(invoice: &Invoice, filename: &str) -> Result<(), Box<dyn
         info_y -= Mm(6.0);
     }
 
-    context.y = info_y - Mm(10.0);
+    context.y = info_y - Mm(5.0);
     draw_horizontal_line(&context.current_layer, margin_left, Mm(190.0), context.y);
     context.y -= Mm(10.0);
 
