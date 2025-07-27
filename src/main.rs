@@ -3,7 +3,6 @@ use std::fs::File;
 use std::io::BufWriter;
 use num_format::{Locale, ToFormattedString};
 
-
 struct Seller {
     name: String,
     address: String,
@@ -38,6 +37,31 @@ struct Invoice {
     products: Vec<Product>,
 }
 
+struct PdfContext<'a> {
+    doc: &'a PdfDocumentReference,
+    font: IndirectFontRef,
+    current_layer: PdfLayerReference,
+    y: Mm,
+}
+
+impl<'a> PdfContext<'a> {
+    fn check_page_break(&mut self, required_space: Mm) {
+        if self.y < required_space {
+            let (page, layer) = self.doc.add_page(Mm(210.0), Mm(297.0), "Layer");
+            self.current_layer = self.doc.get_page(page).get_layer(layer);
+            self.y = Mm(270.0);
+        }
+    }
+
+    fn use_text(&mut self, text: &str, size: f32, x: Mm) {
+        self.current_layer.use_text(text, size, x, self.y, &self.font);
+        self.y -= Mm(size * 0.4);
+    }
+
+    fn use_text_at(&self, text: &str, size: f32, x: Mm, y: Mm) {
+        self.current_layer.use_text(text, size, x, y, &self.font);
+    }
+}
 
 fn main() {
     let invoice = Invoice {
@@ -62,10 +86,9 @@ fn main() {
             ("Project".to_string(), "Example Project".to_string()),
         ],
         payment_type: Some("Bank Transfer".to_string()),
-        payment_info: vec![
-            ("Account Name".to_string(), "J. Doe".to_string()),
-            ("Bank Reference".to_string(), "REF-ABCD-1234".to_string()),
-        ],
+        payment_info: (0..30)
+            .map(|i| (format!("Bank Reference {}", i + 1), format!("REF-ABCD-{}", 1000 + i)))
+            .collect(),
         tax_rate: 0.19,
         products: vec![
             Product {
@@ -84,167 +107,138 @@ fn main() {
     generate_invoice_pdf(&invoice, "invoice.pdf").expect("Failed to create PDF");
 }
 
-
 fn generate_invoice_pdf(invoice: &Invoice, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
     let (doc, page1, layer1) = PdfDocument::new("Invoice", Mm(210.0), Mm(297.0), "Layer 1");
+    let font = doc.add_external_font(File::open("fonts/DejaVuSans.ttf")?)?;
 
-    let current_layer = doc.get_page(page1).get_layer(layer1);
-    let font = doc.add_external_font(std::fs::File::open("fonts/DejaVuSans.ttf")?)?;
+    let mut context = PdfContext {
+        doc: &doc,
+        font: font.clone(),
+        current_layer: doc.get_page(page1).get_layer(layer1),
+        y: Mm(270.0),
+    };
 
     let margin_left = Mm(20.0);
-    let margin_right = Mm(190.0);
-    let mut current_y = Mm(270.0);
-
+    let col2_x = Mm(110.0);
     let font_size_title = 22.0;
     let font_size_subtitle = 14.0;
     let font_size_text = 10.0;
 
-    let use_bold_text = |text: &str, x: Mm, y: Mm| {
-        current_layer.use_text(text, font_size_subtitle as f32, x, y, &font);
-    };
+    // Title
+    context.use_text_at(&invoice.seller.name, font_size_title, margin_left, context.y);
+    context.y -= Mm(26.0);
 
-    let use_text = |text: &str, x: Mm, y: Mm| {
-        current_layer.use_text(text, font_size_text as f32, x, y, &font);
-    };
-
-    current_layer.use_text(&invoice.seller.name, font_size_title as f32, margin_left, current_y, &font);
-    current_y -= Mm(18.0);
-
-    current_y -= Mm(8.0);
-
-    let info_x = Mm(130.0);
-    use_text(&format!("Payment Due: {}", invoice.payment_due), info_x, current_y);
-    current_y -= Mm(6.0);
-    use_text(&format!("Delivery Date: {}", invoice.delivery_date), info_x, current_y);
-    current_y -= Mm(6.0);
-
+    // Right-aligned payment info
+    let mut info_y = context.y;
+    context.use_text_at(&format!("Payment Due: {}", invoice.payment_due), font_size_text, col2_x, info_y);
+    info_y -= Mm(6.0);
+    context.use_text_at(&format!("Delivery Date: {}", invoice.delivery_date), font_size_text, col2_x, info_y);
+    info_y -= Mm(6.0);
     if let Some(delivery_type) = &invoice.delivery_type {
-        use_text(&format!("Delivery Type: {}", delivery_type), info_x, current_y);
-        current_y -= Mm(6.0);
+        context.use_text_at(&format!("Delivery Type: {}", delivery_type), font_size_text, col2_x, info_y);
+        info_y -= Mm(6.0);
     }
 
-    current_y -= Mm(6.0);
-    draw_horizontal_line(&current_layer, margin_left, margin_right, current_y);
-    current_y -= Mm(10.0);
+    context.y = info_y - Mm(10.0);
+    draw_horizontal_line(&context.current_layer, margin_left, Mm(190.0), context.y);
+    context.y -= Mm(10.0);
 
-    let col1_x = margin_left;
-    let col2_x = Mm(margin_left.0 + 80.0);
-    let row1_y = current_y;
-    let row_height = Mm(6.5);
+    // Date / Invoice ID
+    let row_y = context.y;
+    context.use_text_at(&format!("Date: {}", invoice.date), font_size_text, margin_left, row_y);
+    context.use_text_at(&format!("Invoice ID: {}", invoice.number), font_size_text, col2_x, row_y);
+    context.y -= Mm(6.0);
 
-    use_text(&format!("Date: {}", invoice.date), col1_x, row1_y);
-    use_text(&format!("Invoice ID: {}", invoice.number), col2_x, row1_y);
+    let row2_y = context.y;
+    if let Some((k, v)) = invoice.extra_info.get(0) {
+        context.use_text_at(&format!("{}: {}", k, v), font_size_text, margin_left, row2_y);
+    }
+    if let Some((k, v)) = invoice.extra_info.get(1) {
+        context.use_text_at(&format!("{}: {}", k, v), font_size_text, col2_x, row2_y);
+    }
+    context.y -= Mm(10.0);
 
-    let row2_y = row1_y - row_height;
-    use_text(
-        &format!(
-            "{}: {}",
-            invoice.extra_info.get(0).map(|(k, _)| k).unwrap_or(&"".to_string()),
-            invoice.extra_info.get(0).map(|(_, v)| v).unwrap_or(&"".to_string())
-        ),
-        col1_x,
-        row2_y,
-    );
-    use_text(
-        &format!(
-            "{}: {}",
-            invoice.extra_info.get(1).map(|(k, _)| k).unwrap_or(&"".to_string()),
-            invoice.extra_info.get(1).map(|(_, v)| v).unwrap_or(&"".to_string())
-        ),
-        col2_x,
-        row2_y,
-    );
+    draw_horizontal_line(&context.current_layer, margin_left, Mm(190.0), context.y);
+    context.y -= Mm(10.0);
 
-    let separator_y = row2_y - Mm(5.0);
-    draw_horizontal_line(&current_layer, margin_left, margin_right, separator_y);
+    // Sold by / Billed to
+    let header_y = context.y;
+    context.use_text_at("Sold by", font_size_subtitle, margin_left, header_y);
+    context.use_text_at("Billed to", font_size_subtitle, col2_x, header_y);
+    context.y -= Mm(12.0);
 
-    current_y = separator_y - Mm(15.0);
-
-    let col_left = margin_left;
-    let col_right = Mm(110.0);
-    let label_offset = Mm(12.0);
-
-    use_bold_text("Sold by", col_left, current_y);
-    use_bold_text("Billed to", col_right, current_y);
-    current_y -= label_offset;
+    let mut left_y = context.y;
+    let mut right_y = header_y - Mm(12.0);
 
     for line in invoice.seller.name.lines()
         .chain(invoice.seller.address.lines())
         .chain(std::iter::once(invoice.seller.vat_id.as_str()))
         .chain(std::iter::once(invoice.seller.website.as_str())) {
-        use_text(line, col_left, current_y);
-        current_y -= Mm(6.0);
+        context.use_text_at(line, font_size_text, margin_left, left_y);
+        left_y -= Mm(6.0);
     }
 
-    let mut buyer_y = current_y + Mm(6.0) * 4.0 + Mm(6.0);
     for line in invoice.buyer.name.lines()
         .chain(invoice.buyer.address.lines())
         .chain(std::iter::once(invoice.buyer.email.as_str())) {
-        use_text(line, col_right, buyer_y);
-        buyer_y -= Mm(6.0);
+        context.use_text_at(line, font_size_text, col2_x, right_y);
+        right_y -= Mm(6.0);
     }
 
-    current_y = if buyer_y < current_y { buyer_y } else { current_y };
-    current_y -= Mm(15.0);
+    context.y = left_y.min(right_y) - Mm(15.0);
+    context.check_page_break(Mm(20.0));
 
+    // Product Table Header
     let col_product = margin_left;
     let col_units = Mm(90.0);
     let col_unit_cost = Mm(120.0);
     let col_total = Mm(160.0);
 
-    use_text("Product", col_product, current_y);
-    use_text("Units", col_units, current_y);
-    use_text("Unit Cost", col_unit_cost, current_y);
-    use_text("Total", col_total, current_y);
-    current_y -= Mm(8.0);
-
-    draw_horizontal_line(&current_layer, margin_left, Mm(col_total.0 + 30.0), current_y);
-    current_y -= Mm(6.0);
+    context.use_text_at("Product", font_size_text, col_product, context.y);
+    context.use_text_at("Units", font_size_text, col_units,context.y);
+    context.use_text_at("Unit Cost", font_size_text, col_unit_cost,context.y);
+    context.use_text_at("Total", font_size_text, col_total,context.y);
+    context.y -= Mm(8.0);
+    draw_horizontal_line(&context.current_layer, margin_left, Mm(col_total.0 + 30.0), context.y);
+    context.y -= Mm(6.0);
 
     let mut subtotal = 0.0;
     for product in &invoice.products {
+        context.check_page_break(Mm(12.0));
+
+        let y_before_wrap = context.y;
+        // Wrap and print description, get new y after wrapped lines
+        context.y = wrap_text(&product.description, 100.0, font_size_text, &context.font, &context.current_layer, col_product, context.y);
+
+        // Print columns aligned to top line of description (y_before_wrap)
+        context.use_text_at(&product.units.to_string(), font_size_text, col_units, y_before_wrap);
+        context.use_text_at(&format!("{} €", format_currency(product.cost_per_unit)), font_size_text, col_unit_cost, y_before_wrap);
         let total = product.units as f64 * product.cost_per_unit;
         subtotal += total;
+        context.use_text_at(&format!("{} €", format_currency(total)), font_size_text, col_total, y_before_wrap);
 
-        current_y = wrap_text(&product.description, 100.0, font_size_text as f32, &font, &current_layer, col_product, current_y);
-        use_text(&product.units.to_string(), col_units, current_y);
-        use_text(&format!("{} €", format_currency(product.cost_per_unit)), col_unit_cost, current_y);
-        use_text(&format!("{} €", format_currency(total)), col_total, current_y);
-
-        current_y -= Mm(6.0);
+        // context.y is already updated by wrap_text, so optionally subtract some padding here
+        context.y -= Mm(4.0);
     }
 
-    current_y -= Mm(10.0);
 
-    let payment_info_x = margin_left;
-    let mut payment_info_y = current_y;
-
+    context.y -= Mm(10.0);
     if let Some(payment_type) = &invoice.payment_type {
-        use_text(&format!("Payment Type: {}", payment_type), payment_info_x, payment_info_y);
-        payment_info_y -= Mm(8.0);
-
+        context.check_page_break(Mm(8.0));
+        context.use_text(&format!("Payment Type: {}", payment_type), font_size_text, margin_left);
         for (k, v) in &invoice.payment_info {
-            use_text(&format!("{}: {}", k, v), payment_info_x, payment_info_y);
-            payment_info_y -= Mm(6.0);
+            context.check_page_break(Mm(6.0));
+            context.use_text(&format!("{}: {}", k, v), font_size_text, margin_left);
         }
     }
 
-    let totals_x_label = col_unit_cost;
-    let totals_x_value = col_total;
-    let mut totals_y = current_y;
-
-    use_text("Subtotal:", totals_x_label, totals_y);
-    use_text(&format!("{} €", format_currency(subtotal)), totals_x_value, totals_y);
-    totals_y -= Mm(8.0);
-
+    context.y -= Mm(10.0);
     let tax_amount = subtotal * invoice.tax_rate;
-    use_text(&format!("Tax ({}%):", (invoice.tax_rate * 100.0) as u8), totals_x_label, totals_y);
-    use_text(&format!("{} €", format_currency(tax_amount)), totals_x_value, totals_y);
-    totals_y -= Mm(8.0);
+    let total = subtotal + tax_amount;
 
-    let total_amount = subtotal + tax_amount;
-    use_text("Total:", totals_x_label, totals_y);
-    use_text(&format!("{} €", format_currency(total_amount)), totals_x_value, totals_y);
+    context.use_text(&format!("Subtotal: {} €", format_currency(subtotal)), font_size_text, col_total);
+    context.use_text(&format!("Tax ({}%): {} €", (invoice.tax_rate * 100.0) as u8, format_currency(tax_amount)), font_size_text, col_total);
+    context.use_text(&format!("Total: {} €", format_currency(total)), font_size_text, col_total);
 
     doc.save(&mut BufWriter::new(File::create(filename)?))?;
     println!("Invoice saved to '{}'", filename);
