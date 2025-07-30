@@ -1,5 +1,6 @@
-use invoice::{generate_invoice_pdf, save_pdf_bytes, Buyer, Invoice, Product, Seller};
-    use std::fs::File;
+use invoice::{compute_hmac, generate_invoice_pdf, save_pdf_bytes, Buyer, Invoice, Product, Seller};
+use std::fs::File;
+
 fn main() {
     let invoice = Invoice {
         number: "INV-2025-EXAMPLE".to_string(),
@@ -47,6 +48,8 @@ fn main() {
     let mut file = File::create("invoice.pdf").unwrap();
 
     save_pdf_bytes(&mut file, &pdf_bytes).unwrap();
+    let hash = compute_hmac("invoice_id", &pdf_bytes, b"secret");
+    println!("{}",hash);
 
     println!("Invoice saved to 'invoice.pdf'");
 }

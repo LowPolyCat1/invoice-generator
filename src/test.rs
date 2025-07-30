@@ -1,4 +1,4 @@
-use std::{io};
+use std::{fs, io};
 use tempfile::NamedTempFile;
 use crate::{
     format_currency, generate_invoice_pdf, save_pdf_bytes, Buyer, Invoice, Product, Seller, compute_hmac,
@@ -127,4 +127,11 @@ fn validation_test() {
 
     assert_eq!(hash, hash2)
     // Let me know if there is a better way to check for this
+}
+
+#[test]
+fn detect_breaking_changes() {
+    let pdf_bytes= fs::read("old.pdf").unwrap();
+    let hash = compute_hmac("invoice_id", &pdf_bytes, b"secret");
+    assert_eq!("5b933d3c4b64ff5374cb4a8febca287db18eb89d35e4fec77d781dd4b1ec803e".to_string(), hash)
 }
