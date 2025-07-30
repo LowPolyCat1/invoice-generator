@@ -110,7 +110,7 @@ fn main() {
 
 fn generate_invoice_pdf(invoice: &Invoice, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
     let (doc, page1, layer1) = PdfDocument::new("Invoice", Mm(210.0), Mm(297.0), "Layer 1");
-    let font = doc.add_external_font(File::open("fonts/DejaVuSans.ttf")?)?;
+    let font = doc.add_external_font(File::open("fonts/OpenSans-Medium.ttf")?)?;
 
     let mut context = PdfContext {
         doc: &doc,
