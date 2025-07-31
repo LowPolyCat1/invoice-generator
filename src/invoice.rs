@@ -1,5 +1,7 @@
+use ordered_float::OrderedFloat;
 use printpdf::*;
 use std::fs::File;
+use std::collections::BTreeMap;
 
 use crate::format::{format_currency, get_locale_by_code};
 
@@ -20,6 +22,8 @@ pub struct Product {
     pub description: String,
     pub units: u32,
     pub cost_per_unit: f64,
+    pub tax_rate: f64,
+    pub tax_exempt_reason: Option<String>,
 }
 
 pub struct Invoice {
@@ -33,10 +37,7 @@ pub struct Invoice {
     pub extra_info: Vec<(String, String)>,
     pub payment_type: Option<String>,
     pub payment_info: Vec<(String, String)>,
-    pub tax_rate: f64,
     pub products: Vec<Product>,
-
-    /// Added: currency & locale for formatting
     pub currency_code: String,
     pub locale_code: String,
 }
@@ -150,26 +151,37 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
 
     // Product table
     let col_product = margin_left;
-    let col_units = Mm(90.0);
-    let col_unit_cost = Mm(120.0);
+    let col_units = Mm(70.0);
+    let col_unit_cost = Mm(100.0);
+    let col_tax = Mm(130.0);
     let col_total = Mm(160.0);
 
     context.use_text_at("Product", font_size_text, col_product, context.y);
     context.use_text_at("Units", font_size_text, col_units, context.y);
     context.use_text_at("Unit Cost", font_size_text, col_unit_cost, context.y);
+    context.use_text_at("Tax", font_size_text, col_tax, context.y);
     context.use_text_at("Total", font_size_text, col_total, context.y);
     context.y -= Mm(8.0);
     draw_horizontal_line(&context.current_layer, margin_left, Mm(col_total.0 + 30.0), context.y);
     context.y -= Mm(6.0);
 
     let mut subtotal = 0.0;
+    let mut tax_totals: BTreeMap<OrderedFloat<f64>, f64> = BTreeMap::new();
+
+    // Helper to count lines used by wrap_text
+    fn count_lines_used(y_start: Mm, y_end: Mm, font_size: f32) -> usize {
+        (((y_start.0 - y_end.0) / (font_size as f32 * 0.4)).round()) as usize
+    }
+
     for product in &invoice.products {
         context.check_page_break(Mm(12.0));
 
         let y_before_wrap = context.y;
-        context.y = wrap_text(
+
+        // Wrap product description
+        let y_after_desc = wrap_text(
             &product.description,
-            100.0,
+            80.0,
             font_size_text,
             &context.font,
             &context.current_layer,
@@ -177,18 +189,48 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
             context.y,
         );
 
-        // numbers
+        // Prepare tax label text
+        let tax_label = if product.tax_rate == 0.0 {
+            product.tax_exempt_reason.clone().unwrap_or_else(|| "0%".to_string())
+        } else {
+            format!("{:.0}%", product.tax_rate * 100.0)
+        };
+
+        // Wrap tax label text to avoid overlap
+        let max_tax_width = (col_total.0 - col_tax.0) as f32;
+        let y_after_tax = wrap_text(
+            &tax_label,
+            max_tax_width,
+            font_size_text,
+            &context.font,
+            &context.current_layer,
+            col_tax,
+            context.y,
+        );
+
+        // Calculate lines used for both description and tax label
+        let desc_lines = count_lines_used(context.y, y_after_desc, font_size_text);
+        let tax_lines = count_lines_used(context.y, y_after_tax, font_size_text);
+        let lines_used = desc_lines.max(tax_lines);
+
+        // Draw units, unit cost and total aligned to top line
         context.use_text_at(&product.units.to_string(), font_size_text, col_units, y_before_wrap);
 
         let unit_str = format_currency(product.cost_per_unit, &invoice.currency_code, locale);
-        let total_val = product.units as f64 * product.cost_per_unit;
-        let total_str = format_currency(total_val, &invoice.currency_code, locale);
-
         context.use_text_at(&unit_str, font_size_text, col_unit_cost, y_before_wrap);
+
+        let line_total = product.units as f64 * product.cost_per_unit;
+        let line_tax = line_total * product.tax_rate;
+        subtotal += line_total;
+        if product.tax_rate > 0.0 {
+            *tax_totals.entry(OrderedFloat(product.tax_rate)).or_insert(0.0) += line_tax;
+        }
+
+        let total_str = format_currency(line_total + line_tax, &invoice.currency_code, locale);
         context.use_text_at(&total_str, font_size_text, col_total, y_before_wrap);
 
-        subtotal += total_val;
-        context.y -= Mm(4.0);
+        // Move y cursor down by the number of lines used times font height
+        context.y -= Mm(lines_used as f32  * (font_size_text as f32 * 0.4));
     }
 
     // Payment info
@@ -204,22 +246,21 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
 
     // Totals
     context.y -= Mm(10.0);
-    let tax_amount = subtotal * invoice.tax_rate;
-    let total = subtotal + tax_amount;
+    let total: f64 = subtotal + tax_totals.values().sum::<f64>();
 
     let subtotal_str = format_currency(subtotal, &invoice.currency_code, locale);
-    let tax_str = format_currency(tax_amount, &invoice.currency_code, locale);
-    let total_str = format_currency(total, &invoice.currency_code, locale);
-
     context.use_text(&format!("Subtotal: {}", subtotal_str), font_size_text, col_total);
-    context.use_text(
-        &format!("Tax ({}%): {}", (invoice.tax_rate * 100.0) as u8, tax_str),
-        font_size_text,
-        col_total,
-    );
+
+    for (rate, amount) in &tax_totals {
+        let rate_val = rate.into_inner();
+        let tax_str = format_currency(*amount, &invoice.currency_code, locale);
+        context.use_text(&format!("Tax ({:.0}%): {}", rate_val * 100.0, tax_str), font_size_text, col_total);
+    }
+
+    let total_str = format_currency(total, &invoice.currency_code, locale);
     context.use_text(&format!("Total: {}", total_str), font_size_text, col_total);
 
-    // Return as Vec<u8>
+    // Return PDF as Vec<u8>
     let mut buffer = Vec::new();
     {
         let mut writer = std::io::BufWriter::new(&mut buffer);
@@ -275,7 +316,7 @@ pub fn wrap_text(
 
     if !line.is_empty() {
         layer.use_text(&line, font_size, x, y, font);
-        y -= Mm(font_size * 0.4);
+        y -= Mm(font_size * 0.4) + Mm(2.0);
     }
 
     y

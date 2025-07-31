@@ -27,23 +27,31 @@ fn main() {
         payment_type: Some("Bank Transfer".to_string()),
         payment_info: vec![
             ("IBAN".to_string(), "DE00 5001 0517 5407 3249 31".to_string()),
-            ("BIC".to_string(), "INGDDEFFXXX".to_string()),
+            ("BIC".to_string(), "INGDDEFFXXX".to_string())
         ],
-        tax_rate: 0.19,
         products: vec![
             Product {
                 description: "Rusty Widget with very long description".to_string(),
                 units: 10,
                 cost_per_unit: 9.99,
+                tax_rate: 0.19,
+                tax_exempt_reason: None,
             },
             Product {
                 description: "Gadget Pro".to_string(),
                 units: 5,
                 cost_per_unit: 19.95,
+                tax_rate: 0.07,
+                tax_exempt_reason: None,
+            },
+            Product {
+                description: "Exported Item (Reverse Charge)".to_string(),
+                units: 2,
+                cost_per_unit: 100.0,
+                tax_rate: 0.0,
+                tax_exempt_reason: Some("Intra-EU reverse charge".to_string()),
             },
         ],
-
-        // New fields for formatting
         currency_code: "EUR".to_string(),
         locale_code: "de".to_string(),
     };
