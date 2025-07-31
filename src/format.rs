@@ -36,6 +36,7 @@ pub fn get_currency_info(currency_code: &str) -> CurrencyInfo {
             decimal_digits: 2,
         },
     }
+    // TODO: add more currencies, JPY only here for testing 0 decimal digits
 }
 
 
@@ -55,6 +56,7 @@ pub fn format_currency(value: f64, currency_code: &str, locale: Locale) -> Strin
         Locale::de | Locale::fr | Locale::it => ',',
         _ => '.',
     };
+    // TODO: better decimal sep
 
     let number_str = if info.decimal_digits == 0 {
         formatted_units
@@ -83,4 +85,5 @@ pub fn get_locale_by_code(code: &str) -> Locale {
         "es" | "es-ES" => Locale::es,
         _ => Locale::en,
     }
+    // TODO: support more Locale
 }
