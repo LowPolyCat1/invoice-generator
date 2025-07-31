@@ -1,5 +1,6 @@
-use invoice::{compute_hmac, generate_invoice_pdf, save_pdf_bytes, Buyer, Invoice, Product, Seller};
+use invoice::{generate_invoice_pdf, Buyer, Invoice, Product, Seller};
 use std::fs::File;
+use std::io::Write;
 
 fn main() {
     let invoice = Invoice {
@@ -24,9 +25,10 @@ fn main() {
             ("Project".to_string(), "Example Project".to_string()),
         ],
         payment_type: Some("Bank Transfer".to_string()),
-        payment_info: (0..30)
-            .map(|i| (format!("Bank Reference {}", i + 1), format!("REF-ABCD-{}", 1000 + i)))
-            .collect(),
+        payment_info: vec![
+            ("IBAN".to_string(), "DE00 5001 0517 5407 3249 31".to_string()),
+            ("BIC".to_string(), "INGDDEFFXXX".to_string()),
+        ],
         tax_rate: 0.19,
         products: vec![
             Product {
@@ -40,16 +42,16 @@ fn main() {
                 cost_per_unit: 19.95,
             },
         ],
+
+        // New fields for formatting
+        currency_code: "EUR".to_string(),
+        locale_code: "de".to_string(),
     };
 
     let pdf_bytes = generate_invoice_pdf(&invoice).expect("Failed to create PDF");
 
-
-    let mut file = File::create("invoice.pdf").unwrap();
-
-    save_pdf_bytes(&mut file, &pdf_bytes).unwrap();
-    let hash = compute_hmac("invoice_id", &pdf_bytes, b"secret");
-    println!("{}",hash);
+    let mut file = File::create("invoice.pdf").expect("Unable to create output file");
+    file.write_all(&pdf_bytes).expect("Failed to write PDF");
 
     println!("Invoice saved to 'invoice.pdf'");
 }

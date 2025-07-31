@@ -1,8 +1,7 @@
 use printpdf::*;
 use std::fs::File;
-use num_format::{Locale, ToFormattedString};
-use std::io::{self, Write};
 
+use crate::format::{format_currency, get_locale_by_code};
 
 pub struct Seller {
     pub name: String,
@@ -36,6 +35,10 @@ pub struct Invoice {
     pub payment_info: Vec<(String, String)>,
     pub tax_rate: f64,
     pub products: Vec<Product>,
+
+    /// Added: currency & locale for formatting
+    pub currency_code: String,
+    pub locale_code: String,
 }
 
 pub struct PdfContext<'a> {
@@ -75,12 +78,15 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
         y: Mm(270.0),
     };
 
+    let locale = get_locale_by_code(&invoice.locale_code);
+
     let margin_left = Mm(20.0);
     let col2_x = Mm(110.0);
     let font_size_title = 22.0;
     let font_size_subtitle = 14.0;
     let font_size_text = 10.0;
 
+    // Seller title
     context.use_text_at(&invoice.seller.name, font_size_title, margin_left, context.y);
     context.y -= Mm(20.0);
 
@@ -115,6 +121,7 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
     draw_horizontal_line(&context.current_layer, margin_left, Mm(190.0), context.y);
     context.y -= Mm(10.0);
 
+    // Seller & Buyer
     let header_y = context.y;
     context.use_text_at("Sold by", font_size_subtitle, margin_left, header_y);
     context.use_text_at("Billed to", font_size_subtitle, col2_x, header_y);
@@ -141,6 +148,7 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
     context.y = left_y.min(right_y) - Mm(15.0);
     context.check_page_break(Mm(20.0));
 
+    // Product table
     let col_product = margin_left;
     let col_units = Mm(90.0);
     let col_unit_cost = Mm(120.0);
@@ -169,26 +177,21 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
             context.y,
         );
 
+        // numbers
         context.use_text_at(&product.units.to_string(), font_size_text, col_units, y_before_wrap);
-        context.use_text_at(
-            &format!("{} €", format_currency(product.cost_per_unit)),
-            font_size_text,
-            col_unit_cost,
-            y_before_wrap,
-        );
 
-        let total = product.units as f64 * product.cost_per_unit;
-        subtotal += total;
-        context.use_text_at(
-            &format!("{} €", format_currency(total)),
-            font_size_text,
-            col_total,
-            y_before_wrap,
-        );
+        let unit_str = format_currency(product.cost_per_unit, &invoice.currency_code, locale);
+        let total_val = product.units as f64 * product.cost_per_unit;
+        let total_str = format_currency(total_val, &invoice.currency_code, locale);
 
+        context.use_text_at(&unit_str, font_size_text, col_unit_cost, y_before_wrap);
+        context.use_text_at(&total_str, font_size_text, col_total, y_before_wrap);
+
+        subtotal += total_val;
         context.y -= Mm(4.0);
     }
 
+    // Payment info
     context.y -= Mm(10.0);
     if let Some(payment_type) = &invoice.payment_type {
         context.check_page_break(Mm(8.0));
@@ -199,37 +202,30 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
         }
     }
 
+    // Totals
     context.y -= Mm(10.0);
     let tax_amount = subtotal * invoice.tax_rate;
     let total = subtotal + tax_amount;
 
-    context.use_text(
-        &format!("Subtotal: {} €", format_currency(subtotal)),
-        font_size_text,
-        col_total,
-    );
-    context.use_text(
-        &format!(
-            "Tax ({}%): {} €",
-            (invoice.tax_rate * 100.0) as u8,
-            format_currency(tax_amount)
-        ),
-        font_size_text,
-        col_total,
-    );
-    context.use_text(
-        &format!("Total: {} €", format_currency(total)),
-        font_size_text,
-        col_total,
-    );
+    let subtotal_str = format_currency(subtotal, &invoice.currency_code, locale);
+    let tax_str = format_currency(tax_amount, &invoice.currency_code, locale);
+    let total_str = format_currency(total, &invoice.currency_code, locale);
 
+    context.use_text(&format!("Subtotal: {}", subtotal_str), font_size_text, col_total);
+    context.use_text(
+        &format!("Tax ({}%): {}", (invoice.tax_rate * 100.0) as u8, tax_str),
+        font_size_text,
+        col_total,
+    );
+    context.use_text(&format!("Total: {}", total_str), font_size_text, col_total);
+
+    // Return as Vec<u8>
     let mut buffer = Vec::new();
     {
         let mut writer = std::io::BufWriter::new(&mut buffer);
         doc.save(&mut writer)?;
     }
     Ok(buffer)
-
 }
 
 pub fn draw_horizontal_line(layer: &PdfLayerReference, start_x: Mm, end_x: Mm, y: Mm) {
@@ -243,6 +239,7 @@ pub fn draw_horizontal_line(layer: &PdfLayerReference, start_x: Mm, end_x: Mm, y
     };
     layer.add_line(line);
 }
+
 pub fn wrap_text(
     text: &str,
     max_width_mm: f32,
@@ -282,16 +279,4 @@ pub fn wrap_text(
     }
 
     y
-}
-
-pub fn format_currency(value: f64) -> String {
-    let cents = (value * 100.0).round() as u64;
-    let euros = cents / 100;
-    let cent_part = cents % 100;
-    format!("{}, {:02}", euros.to_formatted_string(&Locale::de), cent_part)
-}
-
-pub fn save_pdf_bytes<W: Write>(writer: &mut W, pdf_bytes: &[u8]) -> io::Result<()> {
-    writer.write_all(pdf_bytes)?;
-    Ok(())
 }
