@@ -84,7 +84,7 @@ pub fn draw_logo(
     let image = ImageXObject {
         width: Px(img_width as usize),
         height: Px(img_height as usize),
-        color_space: printpdf::ColorSpace::Rgba,
+        color_space: printpdf::ColorSpace::Rgb,
         bits_per_component: ColorBits::Bit8,
         interpolate: true,
         image_data: dyn_image.into_raw(),
@@ -136,7 +136,7 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
     let font_size_text = 10.0;
 
     // Draw logo instead of seller name
-    draw_logo(&mut context, "D:\\VSC\\Rust\\Projects\\current\\invoice\\res\\logo.png", 0.5, 0.5)?;
+    draw_logo(&mut context, "D:\\VSC\\Rust\\Projects\\current\\invoice\\res\\logo.jpg", 1.00, 1.0)?;
 
     let mut info_y = context.y;
     context.use_text_at(&format!("Payment Due: {}", invoice.payment_due), font_size_text, col2_x, info_y);
