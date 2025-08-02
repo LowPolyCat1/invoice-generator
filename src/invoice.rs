@@ -1,3 +1,4 @@
+use ::image::ImageReader;
 use ordered_float::OrderedFloat;
 use printpdf::*;
 use std::fs::File;
@@ -68,6 +69,53 @@ impl<'a> PdfContext<'a> {
     }
 }
 
+use printpdf::{ImageXObject, ImageTransform};
+
+pub fn draw_logo(
+    context: &mut PdfContext,
+    image_path: &str,
+    width_mm: f32,
+    height_mm: f32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dyn_image = ImageReader::open(image_path)?.decode()?.to_rgb8();
+    let (img_width, img_height) = dyn_image.dimensions();
+
+
+    let image = ImageXObject {
+        width: Px(img_width as usize),
+        height: Px(img_height as usize),
+        color_space: printpdf::ColorSpace::Rgba,
+        bits_per_component: ColorBits::Bit8,
+        interpolate: true,
+        image_data: dyn_image.into_raw(),
+        image_filter: None,
+        clipping_bbox: Some(CurTransMat::Identity),
+        smask: None
+    };
+
+    let pdf_image = printpdf::Image::from(image);
+
+    context.y -= Mm(30.0);
+    pdf_image.add_to_layer(
+        context.current_layer.clone(),
+        ImageTransform {
+            translate_x: Some(Mm(20.0)),
+            translate_y: Some(context.y - Mm(height_mm)),
+            rotate: None,
+            scale_x: Some(width_mm),
+            scale_y: Some(height_mm),
+            dpi: Some(300.0),
+        },
+    );
+    context.y += Mm(30.0);
+
+    // Move cursor down
+    context.y -= Mm(height_mm + 10.0);
+
+    Ok(())
+}
+
+
 pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let (doc, page1, layer1) = PdfDocument::new("Invoice", Mm(210.0), Mm(297.0), "Layer 1");
     let font = doc.add_external_font(File::open("fonts/OpenSans-Medium.ttf")?)?;
@@ -87,9 +135,8 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
     let font_size_subtitle = 14.0;
     let font_size_text = 10.0;
 
-    // Seller title
-    context.use_text_at(&invoice.seller.name, font_size_title, margin_left, context.y);
-    context.y -= Mm(20.0);
+    // Draw logo instead of seller name
+    draw_logo(&mut context, "D:\\VSC\\Rust\\Projects\\current\\invoice\\res\\logo.png", 0.5, 0.5)?;
 
     let mut info_y = context.y;
     context.use_text_at(&format!("Payment Due: {}", invoice.payment_due), font_size_text, col2_x, info_y);
@@ -168,7 +215,6 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
     let mut subtotal = 0.0;
     let mut tax_totals: BTreeMap<OrderedFloat<f64>, f64> = BTreeMap::new();
 
-    // Helper to count lines used by wrap_text
     fn count_lines_used(y_start: Mm, y_end: Mm, font_size: f32) -> usize {
         (((y_start.0 - y_end.0) / (font_size as f32 * 0.4)).round()) as usize
     }
@@ -178,7 +224,6 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
 
         let y_before_wrap = context.y;
 
-        // Wrap product description
         let y_after_desc = wrap_text(
             &product.description,
             80.0,
@@ -189,14 +234,12 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
             context.y,
         );
 
-        // Prepare tax label text
         let tax_label = if product.tax_rate == 0.0 {
             product.tax_exempt_reason.clone().unwrap_or_else(|| "0%".to_string())
         } else {
             format!("{:.0}%", product.tax_rate * 100.0)
         };
 
-        // Wrap tax label text to avoid overlap
         let max_tax_width = (col_total.0 - col_tax.0) as f32;
         let y_after_tax = wrap_text(
             &tax_label,
@@ -208,12 +251,10 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
             context.y,
         );
 
-        // Calculate lines used for both description and tax label
         let desc_lines = count_lines_used(context.y, y_after_desc, font_size_text);
         let tax_lines = count_lines_used(context.y, y_after_tax, font_size_text);
         let lines_used = desc_lines.max(tax_lines);
 
-        // Draw units, unit cost and total aligned to top line
         context.use_text_at(&product.units.to_string(), font_size_text, col_units, y_before_wrap);
 
         let unit_str = format_currency(product.cost_per_unit, &invoice.currency_code, locale);
@@ -229,11 +270,9 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
         let total_str = format_currency(line_total + line_tax, &invoice.currency_code, locale);
         context.use_text_at(&total_str, font_size_text, col_total, y_before_wrap);
 
-        // Move y cursor down by the number of lines used times font height
-        context.y -= Mm(lines_used as f32  * (font_size_text as f32 * 0.4));
+        context.y -= Mm(lines_used as f32 * (font_size_text as f32 * 0.4));
     }
 
-    // Payment info
     context.y -= Mm(10.0);
     if let Some(payment_type) = &invoice.payment_type {
         context.check_page_break(Mm(8.0));
@@ -244,7 +283,6 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
         }
     }
 
-    // Totals
     context.y -= Mm(10.0);
     let total: f64 = subtotal + tax_totals.values().sum::<f64>();
 
@@ -260,7 +298,6 @@ pub fn generate_invoice_pdf(invoice: &Invoice) -> Result<Vec<u8>, Box<dyn std::e
     let total_str = format_currency(total, &invoice.currency_code, locale);
     context.use_text(&format!("Total: {}", total_str), font_size_text, col_total);
 
-    // Return PDF as Vec<u8>
     let mut buffer = Vec::new();
     {
         let mut writer = std::io::BufWriter::new(&mut buffer);

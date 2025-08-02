@@ -10,6 +10,7 @@ hmac = "*"
 sha2 = "*"
 hex = "*"
 ordered-float = "*"
+image = { version = "0.25.6", features = ["png", "jpeg"] }
 
 [dev-dependencies]
 tempfile = { version = "3.20.0" }
