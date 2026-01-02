@@ -33,9 +33,11 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
 
     let (subtotal, tax_totals, total) = invoice.calculate_summary();
     draw_product_table(&mut ctx, invoice, &locale)?;
+
+    let summary_top = ctx.y - Mm(8.0);
     draw_financial_summary(&mut ctx, invoice, &locale, subtotal, &tax_totals, total);
 
-    draw_payment_details(&mut ctx, invoice);
+    draw_payment_details(&mut ctx, invoice, summary_top);
 
     ctx.pages
         .push(PdfPage::new(PAGE_WIDTH, PAGE_HEIGHT, ctx.current_ops));
