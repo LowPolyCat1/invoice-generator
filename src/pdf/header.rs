@@ -8,6 +8,7 @@ pub fn draw_header_info(ctx: &mut PdfContext, invoice: &Invoice) {
         COL_1,
         ctx.y,
     );
+    ctx.y -= Mm(6.0);
     ctx.write_text_at(
         &format!("PAYMENT DUE: {}", invoice.payment_due),
         10.0,
@@ -15,8 +16,8 @@ pub fn draw_header_info(ctx: &mut PdfContext, invoice: &Invoice) {
         ctx.y,
     );
 
-    ctx.y -= Mm(6.0);
     ctx.write_text_at(&format!("DATE: {}", invoice.date), 10.0, COL_1, ctx.y);
+    ctx.y -= Mm(6.0);
     ctx.write_text_at(
         &format!("DELIVERY DATE: {}", invoice.delivery_date),
         10.0,
@@ -25,15 +26,14 @@ pub fn draw_header_info(ctx: &mut PdfContext, invoice: &Invoice) {
     );
 
     for (label, value) in &invoice.extra_info {
-        ctx.y -= Mm(5.0);
         ctx.write_text_at(
             &format!("{}: {}", label.to_uppercase(), value),
             10.0,
             COL_1,
             ctx.y,
         );
+        ctx.y -= Mm(5.0);
     }
 
-    ctx.y -= Mm(8.0);
     draw_line(&mut ctx.current_ops, COL_1, Mm(190.0), ctx.y);
 }
