@@ -4,8 +4,8 @@ pub fn draw_address_section(ctx: &mut PdfContext, invoice: &Invoice) {
     ctx.y -= Mm(8.0);
     let addr_y = ctx.y;
 
-    ctx.write_text_at("SOLD BY:", 8.0, COL_1, addr_y);
-    ctx.write_text_at("BILLED TO:", 8.0, COL_2, addr_y);
+    ctx.write_text_at("Sold by", 15.0, COL_1, addr_y);
+    ctx.write_text_at("Billed to", 15.0, COL_2, addr_y);
 
     ctx.y = addr_y - Mm(5.0);
     ctx.write_text(&invoice.seller.name, 10.0, COL_1);

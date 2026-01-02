@@ -5,12 +5,7 @@ pub fn draw_payment_details(ctx: &mut PdfContext, invoice: &Invoice, target_y: M
     ctx.y = target_y;
 
     if let Some(ref p_type) = invoice.payment_type {
-        ctx.write_text_at(
-            &format!("PAYMENT METHOD: {}", p_type.to_uppercase()),
-            10.0,
-            COL_1,
-            ctx.y,
-        );
+        ctx.write_text_at(&format!("Payment Method: {}", p_type), 10.0, COL_1, ctx.y);
         ctx.y -= Mm(6.0);
     }
 
