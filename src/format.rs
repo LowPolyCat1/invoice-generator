@@ -39,8 +39,6 @@ pub fn get_currency_info(currency_code: &str) -> CurrencyInfo {
     // TODO: add more currencies, JPY only here for testing 0 decimal digits
 }
 
-
-
 pub fn format_currency(value: f64, currency_code: &str, locale: Locale) -> String {
     let info = get_currency_info(currency_code);
 
@@ -53,10 +51,9 @@ pub fn format_currency(value: f64, currency_code: &str, locale: Locale) -> Strin
     let formatted_units = units.to_formatted_string(&locale);
 
     let decimal_sep = match locale {
-        Locale::de | Locale::fr | Locale::it => ',',
+        Locale::de | Locale::fr | Locale::it | Locale::ja => ',',
         _ => '.',
     };
-    // TODO: better decimal sep
 
     let number_str = if info.decimal_digits == 0 {
         formatted_units
