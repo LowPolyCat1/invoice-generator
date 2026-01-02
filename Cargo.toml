@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-printpdf = {version = "0.7.0", features = ["image"]}
+printpdf = { version = "0.7.0", features = ["image"] }
 num-format = "0.4.4"
 hmac = "*"
 sha2 = "*"
@@ -14,4 +14,4 @@ image = { version = "0.25.6", features = ["png", "jpeg"] }
 
 [dev-dependencies]
 tempfile = { version = "3.20.0" }
-ordered-float ={ version = "*"}
+ordered-float = { version = "*" }

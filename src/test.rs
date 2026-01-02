@@ -1,9 +1,12 @@
-use std::{fs, io::{self, Write}};
+use std::{
+    fs,
+    io::{self, Write},
+};
 use tempfile::NamedTempFile;
 
 use crate::{
     format_currency,
-    invoice::{generate_invoice_pdf, Buyer, Invoice, Product, Seller},
+    invoice::{Buyer, Invoice, Product, Seller, generate_invoice_pdf},
 };
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
@@ -13,13 +16,6 @@ fn compute_hmac(key: &[u8], data: &[u8]) -> String {
     mac.update(data);
     let result = mac.finalize();
     hex::encode(result.into_bytes())
-}
-
-#[test]
-fn test_format_currency() {
-    assert_eq!(format_currency(0.0, "EUR", num_format::Locale::de), "0,00 €");
-    assert_eq!(format_currency(1234.56, "EUR", num_format::Locale::de), "1.234,56 €");
-    assert_eq!(format_currency(12.5, "EUR", num_format::Locale::de), "12,50 €");
 }
 
 fn make_test_invoice() -> Invoice {
@@ -62,6 +58,26 @@ fn make_test_invoice() -> Invoice {
         currency_code: "EUR".to_string(),
         locale_code: "de".to_string(),
     }
+}
+
+#[test]
+fn test_format_currency() {
+    assert_eq!(
+        format_currency(0.0, "EUR", num_format::Locale::de),
+        "0,00 €"
+    );
+    assert_eq!(
+        format_currency(1234.56, "EUR", num_format::Locale::de),
+        "1.234,56 €"
+    );
+    assert_eq!(
+        format_currency(12.5, "EUR", num_format::Locale::de),
+        "12,50 €"
+    );
+    assert_eq!(
+        format_currency(1234.0, "JPY", num_format::Locale::ja),
+        "¥1,234"
+    );
 }
 
 #[test]

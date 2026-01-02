@@ -1,4 +1,4 @@
-use invoice::{generate_invoice_pdf, Buyer, Invoice, Product, Seller};
+use invoice::{Buyer, Invoice, Product, Seller, generate_invoice_pdf};
 use std::fs::File;
 use std::io::Write;
 
@@ -26,8 +26,11 @@ fn main() {
         ],
         payment_type: Some("Bank Transfer".to_string()),
         payment_info: vec![
-            ("IBAN".to_string(), "DE00 5001 0517 5407 3249 31".to_string()),
-            ("BIC".to_string(), "INGDDEFFXXX".to_string())
+            (
+                "IBAN".to_string(),
+                "DE00 5001 0517 5407 3249 31".to_string(),
+            ),
+            ("BIC".to_string(), "INGDDEFFXXX".to_string()),
         ],
         products: vec![
             Product {
@@ -58,7 +61,7 @@ fn main() {
 
     let pdf_bytes = generate_invoice_pdf(&invoice).expect("Failed to create PDF");
 
-    let mut file = File::create("invoice.pdf").expect("Unable to create output file");
+    let mut file = File::create("../invoice.pdf").expect("Unable to create output file");
     file.write_all(&pdf_bytes).expect("Failed to write PDF");
 
     println!("Invoice saved to 'invoice.pdf'");
