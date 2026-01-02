@@ -1,123 +1,13 @@
-use ordered_float::OrderedFloat;
 use printpdf::*;
-use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
+use crate::invoice::*;
+
+use crate::pdf::*;
+
 use crate::format::{format_currency, get_locale_by_code};
-
-pub struct Seller {
-    pub name: String,
-    pub address: String,
-    pub vat_id: String,
-    pub website: String,
-}
-pub struct Buyer {
-    pub name: String,
-    pub address: String,
-    pub email: String,
-}
-pub struct Product {
-    pub description: String,
-    pub units: u32,
-    pub cost_per_unit: f64,
-    pub tax_rate: f64,
-    pub tax_exempt_reason: Option<String>,
-}
-pub struct Invoice {
-    pub number: String,
-    pub date: String,
-    pub seller: Seller,
-    pub buyer: Buyer,
-    pub payment_due: String,
-    pub delivery_date: String,
-    pub delivery_type: Option<String>,
-    pub extra_info: Vec<(String, String)>,
-    pub payment_type: Option<String>,
-    pub payment_info: Vec<(String, String)>,
-    pub products: Vec<Product>,
-    pub currency_code: String,
-    pub locale_code: String,
-}
-
-impl Invoice {
-    pub fn calculate_summary(&self) -> (f64, BTreeMap<OrderedFloat<f64>, f64>, f64) {
-        let mut subtotal = 0.0;
-        let mut tax_totals = BTreeMap::new();
-        for product in &self.products {
-            let line_total = product.units as f64 * product.cost_per_unit;
-            subtotal += line_total;
-            if product.tax_rate > 0.0 {
-                *tax_totals
-                    .entry(OrderedFloat(product.tax_rate))
-                    .or_insert(0.0) += line_total * product.tax_rate;
-            }
-        }
-        let total = subtotal + tax_totals.values().sum::<f64>();
-        (subtotal, tax_totals, total)
-    }
-}
-
-pub struct PdfContext {
-    pub font_id: FontId,
-    pub pages: Vec<PdfPage>,
-    pub current_ops: Vec<Op>,
-    pub y: Mm,
-}
-
-impl PdfContext {
-    pub fn new(font_id: FontId) -> Self {
-        Self {
-            font_id,
-            pages: Vec::new(),
-            current_ops: Vec::new(),
-            y: Mm(280.0),
-        }
-    }
-
-    pub fn write_text(&mut self, text: &str, size: f32, x: Mm) {
-        if text.trim().is_empty() {
-            return;
-        }
-        self.current_ops.push(Op::StartTextSection);
-        self.current_ops.push(Op::SetTextCursor {
-            pos: Point {
-                x: x.into(),
-                y: self.y.into(),
-            },
-        });
-        self.current_ops.push(Op::SetFontSize {
-            font: self.font_id.clone(),
-            size: Pt(size),
-        });
-        self.current_ops.push(Op::WriteText {
-            items: vec![TextItem::Text(text.to_string())],
-            font: self.font_id.clone(),
-        });
-        self.current_ops.push(Op::EndTextSection);
-        self.y -= Mm(size * 0.45);
-    }
-
-    pub fn write_text_at(&mut self, text: &str, size: f32, x: Mm, y: Mm) {
-        self.current_ops.push(Op::StartTextSection);
-        self.current_ops.push(Op::SetTextCursor {
-            pos: Point {
-                x: x.into(),
-                y: y.into(),
-            },
-        });
-        self.current_ops.push(Op::SetFontSize {
-            font: self.font_id.clone(),
-            size: Pt(size),
-        });
-        self.current_ops.push(Op::WriteText {
-            items: vec![TextItem::Text(text.to_string())],
-            font: self.font_id.clone(),
-        });
-        self.current_ops.push(Op::EndTextSection);
-    }
-}
 
 pub fn generate_invoice_pdf<P: AsRef<Path>>(
     invoice: &Invoice,
@@ -242,7 +132,7 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
             Mm(165.0),
             row_y,
         );
-        ctx.y = wrap_text_ops(&mut ctx, &p.description, 75.0, 9.0, col1);
+        ctx.y = ctx.wrap_text_ops(&p.description, 75.0, 9.0, col1);
         ctx.y -= Mm(4.0);
     }
 
@@ -303,49 +193,4 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
     Ok(doc
         .with_pages(ctx.pages)
         .save(&PdfSaveOptions::default(), &mut Vec::new()))
-}
-
-pub fn draw_line(ops: &mut Vec<Op>, x1: Mm, x2: Mm, y: Mm) {
-    ops.push(Op::SetOutlineColor {
-        col: Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)),
-    });
-    ops.push(Op::SetOutlineThickness { pt: Pt(0.5) });
-    ops.push(Op::DrawLine {
-        line: Line {
-            points: vec![
-                LinePoint {
-                    p: Point {
-                        x: x1.into(),
-                        y: y.into(),
-                    },
-                    bezier: false,
-                },
-                LinePoint {
-                    p: Point {
-                        x: x2.into(),
-                        y: y.into(),
-                    },
-                    bezier: false,
-                },
-            ],
-            is_closed: false,
-        },
-    });
-}
-
-pub fn wrap_text_ops(ctx: &mut PdfContext, t: &str, max_w: f32, sz: f32, x: Mm) -> Mm {
-    let words: Vec<&str> = t.split_whitespace().collect();
-    let mut line = String::new();
-    for word in words {
-        if (line.len() + word.len()) as f32 * (sz * 0.16) > max_w {
-            ctx.write_text(&line, sz, x);
-            line.clear();
-        }
-        if !line.is_empty() {
-            line.push(' ');
-        }
-        line.push_str(word);
-    }
-    ctx.write_text(&line, sz, x);
-    ctx.y
 }

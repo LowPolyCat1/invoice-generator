@@ -5,5 +5,7 @@ mod invoice;
 pub use invoice::*;
 mod validation;
 pub use validation::*;
-pub mod format;
+mod format;
 pub use format::*;
+mod pdf;
+pub use pdf::*;

@@ -5,8 +5,8 @@ use std::{
 use tempfile::NamedTempFile;
 
 use crate::{
-    format_currency,
-    invoice::{Buyer, Invoice, Product, Seller, generate_invoice_pdf},
+    format_currency, generate_invoice_pdf,
+    invoice::{Buyer, Invoice, Product, Seller},
 };
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
