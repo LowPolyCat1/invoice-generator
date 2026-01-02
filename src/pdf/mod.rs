@@ -15,6 +15,8 @@ const COL_1: Mm = Mm(LEFT_MARGIN);
 const COL_2: Mm = Mm(120.0);
 const PAGE_WIDTH: Mm = Mm(210.0);
 const PAGE_HEIGHT: Mm = Mm(297.0);
+const BOTTOM_MARGIN: Mm = Mm(15.0);
+const RIGHT_MARGIN: Mm = Mm(20.0);
 
 pub struct PdfContext {
     pub font_id: FontId,
