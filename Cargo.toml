@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-printpdf = { version = "0.7.0", features = ["image"] }
+printpdf = { version = "0.8.*", features = ["png", "jpeg"] }
 num-format = "0.4.4"
 hmac = "*"
 sha2 = "*"
