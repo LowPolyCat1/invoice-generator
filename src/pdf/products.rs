@@ -16,7 +16,7 @@ pub fn draw_products(
     let mut current_page_top = table_top_initial + Mm(4.);
 
     for p in &invoice.products {
-        if ctx.y < Mm(40.0) {
+        if ctx.y < Mm(30.0) {
             draw_table_borders(ctx, col1, current_page_top, ctx.y);
 
             ctx.pages.push(PdfPage::new(
