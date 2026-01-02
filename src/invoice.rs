@@ -1,11 +1,9 @@
-use ::image::ImageReader;
-use num_format::Locale;
 use ordered_float::OrderedFloat;
 use printpdf::*;
+use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::Read;
 use std::path::Path;
-use std::{collections::BTreeMap, vec};
 
 use crate::format::{format_currency, get_locale_by_code};
 
@@ -15,13 +13,11 @@ pub struct Seller {
     pub vat_id: String,
     pub website: String,
 }
-
 pub struct Buyer {
     pub name: String,
     pub address: String,
     pub email: String,
 }
-
 pub struct Product {
     pub description: String,
     pub units: u32,
@@ -29,7 +25,6 @@ pub struct Product {
     pub tax_rate: f64,
     pub tax_exempt_reason: Option<String>,
 }
-
 pub struct Invoice {
     pub number: String,
     pub date: String,
@@ -50,7 +45,6 @@ impl Invoice {
     pub fn calculate_summary(&self) -> (f64, BTreeMap<OrderedFloat<f64>, f64>, f64) {
         let mut subtotal = 0.0;
         let mut tax_totals = BTreeMap::new();
-
         for product in &self.products {
             let line_total = product.units as f64 * product.cost_per_unit;
             subtotal += line_total;
@@ -63,53 +57,65 @@ impl Invoice {
         let total = subtotal + tax_totals.values().sum::<f64>();
         (subtotal, tax_totals, total)
     }
-
-    fn seller_as_lines(&self) -> Vec<&str> {
-        let mut lines = Vec::new();
-        lines.push(self.seller.name.as_str());
-        for line in self.seller.address.lines() {
-            lines.push(line);
-        }
-        lines.push(self.seller.vat_id.as_str());
-        lines.push(self.seller.website.as_str());
-        lines
-    }
-
-    fn buyer_as_lines(&self) -> Vec<&str> {
-        let mut lines = Vec::new();
-        lines.push(self.buyer.name.as_str());
-        for line in self.buyer.address.lines() {
-            lines.push(line);
-        }
-        lines.push(self.buyer.email.as_str());
-        lines
-    }
 }
 
-pub struct PdfContext<'a> {
-    pub doc: &'a PdfDocumentReference,
-    pub font: IndirectFontRef,
-    pub current_layer: PdfLayerReference,
+pub struct PdfContext {
+    pub font_id: FontId,
+    pub pages: Vec<PdfPage>,
+    pub current_ops: Vec<Op>,
     pub y: Mm,
 }
 
-impl<'a> PdfContext<'a> {
-    pub fn check_page_break(&mut self, required_space: Mm) {
-        if self.y < required_space {
-            let (page, layer) = self.doc.add_page(Mm(210.0), Mm(297.0), "Layer");
-            self.current_layer = self.doc.get_page(page).get_layer(layer);
-            self.y = Mm(270.0);
+impl PdfContext {
+    pub fn new(font_id: FontId) -> Self {
+        Self {
+            font_id,
+            pages: Vec::new(),
+            current_ops: Vec::new(),
+            y: Mm(280.0),
         }
     }
 
-    pub fn use_text(&mut self, text: &str, size: f32, x: Mm) {
-        self.current_layer
-            .use_text(text, size, x, self.y, &self.font);
-        self.y -= Mm(size * 0.4);
+    pub fn write_text(&mut self, text: &str, size: f32, x: Mm) {
+        if text.trim().is_empty() {
+            return;
+        }
+        self.current_ops.push(Op::StartTextSection);
+        self.current_ops.push(Op::SetTextCursor {
+            pos: Point {
+                x: x.into(),
+                y: self.y.into(),
+            },
+        });
+        self.current_ops.push(Op::SetFontSize {
+            font: self.font_id.clone(),
+            size: Pt(size),
+        });
+        self.current_ops.push(Op::WriteText {
+            items: vec![TextItem::Text(text.to_string())],
+            font: self.font_id.clone(),
+        });
+        self.current_ops.push(Op::EndTextSection);
+        self.y -= Mm(size * 0.45);
     }
 
-    pub fn use_text_at(&self, text: &str, size: f32, x: Mm, y: Mm) {
-        self.current_layer.use_text(text, size, x, y, &self.font);
+    pub fn write_text_at(&mut self, text: &str, size: f32, x: Mm, y: Mm) {
+        self.current_ops.push(Op::StartTextSection);
+        self.current_ops.push(Op::SetTextCursor {
+            pos: Point {
+                x: x.into(),
+                y: y.into(),
+            },
+        });
+        self.current_ops.push(Op::SetFontSize {
+            font: self.font_id.clone(),
+            size: Pt(size),
+        });
+        self.current_ops.push(Op::WriteText {
+            items: vec![TextItem::Text(text.to_string())],
+            font: self.font_id.clone(),
+        });
+        self.current_ops.push(Op::EndTextSection);
     }
 }
 
@@ -118,245 +124,221 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
     font_path: P,
     logo_path: Option<P>,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let (doc, page1, layer1) = PdfDocument::new("Invoice", Mm(210.0), Mm(297.0), "Layer 1");
-    let font = doc.add_external_font(File::open(font_path)?)?;
+    let mut doc = PdfDocument::new("Invoice");
+    let font_bytes = std::fs::read(font_path)?;
+    let font_id =
+        doc.add_font(&ParsedFont::from_bytes(&font_bytes, 0, &mut Vec::new()).ok_or("Font Error")?);
 
-    let mut ctx = PdfContext {
-        doc: &doc,
-        font,
-        current_layer: doc.get_page(page1).get_layer(layer1),
-        y: Mm(290.0),
-    };
-
-    let locale = get_locale_by_code(&invoice.locale_code);
+    let mut ctx = PdfContext::new(font_id);
     let (subtotal, tax_totals, total) = invoice.calculate_summary();
+    let locale = get_locale_by_code(&invoice.locale_code);
 
     if let Some(path) = logo_path {
-        draw_logo(&mut ctx, path.as_ref(), 1.0, 1.0)?;
+        let mut buf = Vec::new();
+        File::open(path)?.read_to_end(&mut buf)?;
+        let image =
+            RawImage::decode_from_bytes(&buf, &mut Vec::new()).map_err(|e| e.to_string())?;
+        let image_id = doc.add_image(&image);
+        ctx.current_ops.push(Op::UseXobject {
+            id: image_id,
+            transform: XObjectTransform {
+                translate_x: Some(Mm(20.0).into()),
+                translate_y: Some(Mm(255.0).into()),
+                scale_x: Some(0.12),
+                scale_y: Some(0.12),
+                ..Default::default()
+            },
+        });
+        ctx.y = Mm(245.0);
     }
 
-    let margin_left = Mm(20.0);
-    let col2_x = Mm(110.0);
-    let font_text = 10.0;
-    let font_sub = 14.0;
-
-    let info_y_start = ctx.y;
-    ctx.use_text_at(
-        &format!("Payment Due: {}", invoice.payment_due),
-        font_text,
-        col2_x,
-        info_y_start,
+    let col1 = Mm(20.0);
+    let col2 = Mm(120.0);
+    ctx.write_text_at(
+        &format!("INVOICE ID: {}", invoice.number),
+        14.0,
+        col1,
+        ctx.y,
     );
-    ctx.use_text_at(
-        &format!("Delivery Date: {}", invoice.delivery_date),
-        font_text,
-        col2_x,
-        info_y_start - Mm(6.0),
+    ctx.write_text_at(
+        &format!("PAYMENT DUE: {}", invoice.payment_due),
+        10.0,
+        col2,
+        ctx.y,
+    );
+    ctx.y -= Mm(6.0);
+    ctx.write_text_at(&format!("DATE: {}", invoice.date), 10.0, col1, ctx.y);
+    ctx.write_text_at(
+        &format!("DELIVERY DATE: {}", invoice.delivery_date),
+        10.0,
+        col2,
+        ctx.y,
+    );
+
+    for (label, value) in &invoice.extra_info {
+        ctx.y -= Mm(5.0);
+        ctx.write_text_at(
+            &format!("{}: {}", label.to_uppercase(), value),
+            10.0,
+            col1,
+            ctx.y,
+        );
+    }
+
+    ctx.y -= Mm(8.0);
+    draw_line(&mut ctx.current_ops, col1, Mm(190.0), ctx.y);
+
+    ctx.y -= Mm(8.0);
+    let addr_y = ctx.y;
+    ctx.write_text_at("SOLD BY:", 8.0, col1, addr_y);
+    ctx.write_text_at("BILLED TO:", 8.0, col2, addr_y);
+    ctx.y = addr_y - Mm(5.0);
+    ctx.write_text(&invoice.seller.name, 10.0, col1);
+    for line in invoice.seller.address.lines() {
+        ctx.write_text(line, 9.0, col1);
+    }
+    ctx.write_text(&format!("VAT: {}", invoice.seller.vat_id), 9.0, col1);
+    let seller_end_y = ctx.y;
+
+    ctx.y = addr_y - Mm(5.0);
+    ctx.write_text(&invoice.buyer.name, 10.0, col2);
+    for line in invoice.buyer.address.lines() {
+        ctx.write_text(line, 9.0, col2);
+    }
+    ctx.write_text(&invoice.buyer.email, 9.0, col2);
+    let buyer_end_y = ctx.y;
+
+    ctx.y = seller_end_y.min(buyer_end_y) - Mm(10.0);
+    draw_line(&mut ctx.current_ops, col1, Mm(190.0), ctx.y);
+
+    ctx.y -= Mm(8.0);
+    ctx.write_text_at("Product", 9.0, col1, ctx.y);
+    ctx.write_text_at("Units", 9.0, Mm(100.0), ctx.y);
+    ctx.write_text_at("Unit Cost", 9.0, Mm(130.0), ctx.y);
+    ctx.write_text_at("Total", 9.0, Mm(165.0), ctx.y);
+    ctx.y -= Mm(5.0);
+
+    for p in &invoice.products {
+        if ctx.y < Mm(40.0) {
+            ctx.pages.push(PdfPage::new(
+                Mm(210.0),
+                Mm(297.0),
+                ctx.current_ops.drain(..).collect(),
+            ));
+            ctx.y = Mm(280.0);
+        }
+        let line_total = p.units as f64 * p.cost_per_unit;
+        let row_y = ctx.y;
+        ctx.write_text_at(&p.units.to_string(), 9.0, Mm(100.0), row_y);
+        ctx.write_text_at(
+            &format_currency(p.cost_per_unit, &invoice.currency_code, locale),
+            9.0,
+            Mm(130.0),
+            row_y,
+        );
+        ctx.write_text_at(
+            &format_currency(line_total, &invoice.currency_code, locale),
+            9.0,
+            Mm(165.0),
+            row_y,
+        );
+        ctx.y = wrap_text_ops(&mut ctx, &p.description, 75.0, 9.0, col1);
+        ctx.y -= Mm(4.0);
+    }
+
+    ctx.y -= Mm(5.0);
+    draw_line(&mut ctx.current_ops, col2, Mm(190.0), ctx.y);
+    ctx.y -= Mm(8.0);
+    ctx.write_text_at("Subtotal:", 9.0, col2, ctx.y);
+    ctx.write_text_at(
+        &format_currency(subtotal, &invoice.currency_code, locale),
+        9.0,
+        Mm(165.0),
+        ctx.y,
+    );
+    for (rate, amt) in tax_totals {
+        ctx.y -= Mm(5.0);
+        ctx.write_text_at(&format!("Tax ({:.0}%):", *rate * 100.0), 9.0, col2, ctx.y);
+        ctx.write_text_at(
+            &format_currency(amt, &invoice.currency_code, locale),
+            9.0,
+            Mm(165.0),
+            ctx.y,
+        );
+    }
+    ctx.y -= Mm(8.0);
+    ctx.write_text_at("TOTAL:", 12.0, col2, ctx.y);
+    ctx.write_text_at(
+        &format_currency(total, &invoice.currency_code, locale),
+        12.0,
+        Mm(165.0),
+        ctx.y,
     );
 
     ctx.y -= Mm(15.0);
-    draw_line(&ctx.current_layer, margin_left, Mm(190.0), ctx.y);
-
-    ctx.y -= Mm(10.0);
-    ctx.use_text_at(
-        &format!("Date: {}", invoice.date),
-        font_text,
-        margin_left,
-        ctx.y,
-    );
-    ctx.use_text_at(
-        &format!("Invoice ID: {}", invoice.number),
-        font_text,
-        col2_x,
-        ctx.y,
-    );
-
-    ctx.y -= Mm(10.0);
-    draw_line(&ctx.current_layer, margin_left, Mm(190.0), ctx.y);
-
-    ctx.y -= Mm(10.0);
-    ctx.use_text_at("Sold by", font_sub, margin_left, ctx.y);
-    ctx.use_text_at("Billed to", font_sub, col2_x, ctx.y);
-    ctx.y -= Mm(10.0);
-
-    let party_y = ctx.y;
-    draw_address_block(&mut ctx, &invoice.seller_as_lines(), margin_left);
-    let seller_end = ctx.y;
-    ctx.y = party_y;
-    draw_address_block(&mut ctx, &invoice.buyer_as_lines(), col2_x);
-    ctx.y = ctx.y.min(seller_end) - Mm(15.0);
-
-    draw_table_header(&mut ctx, margin_left);
-    for product in &invoice.products {
-        draw_product_row(&mut ctx, product, invoice, locale, margin_left);
-    }
-
-    ctx.y -= Mm(10.0);
-    ctx.use_text(
-        &format!(
-            "Subtotal: {}",
-            format_currency(subtotal, &invoice.currency_code, locale)
-        ),
-        font_text,
-        Mm(150.0),
-    );
-    for (rate, amt) in &tax_totals {
-        ctx.use_text(
-            &format!(
-                "Tax ({:.0}%): {}",
-                rate.into_inner() * 100.0,
-                format_currency(*amt, &invoice.currency_code, locale)
-            ),
-            font_text,
-            Mm(150.0),
+    if let Some(ref p_type) = invoice.payment_type {
+        ctx.write_text_at(
+            &format!("PAYMENT METHOD: {}", p_type.to_uppercase()),
+            10.0,
+            col1,
+            ctx.y,
         );
+        ctx.y -= Mm(6.0);
     }
-    ctx.use_text(
-        &format!(
-            "Total: {}",
-            format_currency(total, &invoice.currency_code, locale)
-        ),
-        font_text,
-        Mm(150.0),
-    );
 
-    let mut buffer = Vec::new();
-    doc.save(&mut BufWriter::new(&mut buffer))?;
-    Ok(buffer)
+    for (label, value) in &invoice.payment_info {
+        if ctx.y < Mm(20.0) {
+            ctx.pages.push(PdfPage::new(
+                Mm(210.0),
+                Mm(297.0),
+                ctx.current_ops.drain(..).collect(),
+            ));
+            ctx.y = Mm(280.0);
+        }
+        ctx.write_text(&format!("{}: {}", label, value), 9.0, col1);
+    }
+
+    ctx.pages
+        .push(PdfPage::new(Mm(210.0), Mm(297.0), ctx.current_ops));
+    Ok(doc
+        .with_pages(ctx.pages)
+        .save(&PdfSaveOptions::default(), &mut Vec::new()))
 }
 
-pub fn draw_logo(
-    ctx: &mut PdfContext,
-    path: &Path,
-    _sw: f32,
-    _sh: f32,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let dyn_image = ImageReader::open(path)?.decode()?;
-    let (w_px, h_px) = (dyn_image.width(), dyn_image.height());
-    let rgba_img = dyn_image.to_rgba8();
-
-    let mut rgb_data = Vec::with_capacity((w_px * h_px * 3) as usize);
-    let mut alpha_data = Vec::with_capacity((w_px * h_px) as usize);
-
-    for y in 0..h_px {
-        for x in 0..w_px {
-            let pixel = rgba_img.get_pixel(x, y);
-            rgb_data.push(pixel[0]);
-            rgb_data.push(pixel[1]);
-            rgb_data.push(pixel[2]);
-        }
-    }
-
-    for y in 0..h_px {
-        for x in 0..w_px {
-            let pixel = rgba_img.get_pixel(x, y);
-            alpha_data.push(pixel[3] as i64);
-        }
-    }
-
-    let smask = SMask {
-        width: w_px as i64,
-        height: h_px as i64,
-        interpolate: false,
-        bits_per_component: -1,
-        matte: alpha_data,
-    };
-
-    let image = ImageXObject {
-        width: Px(w_px as usize),
-        height: Px(h_px as usize),
-        color_space: ColorSpace::Rgb,
-        bits_per_component: ColorBits::Bit8,
-        interpolate: false,
-        image_data: rgb_data,
-        image_filter: None,
-        clipping_bbox: Some(CurTransMat::Identity),
-        smask: Some(smask),
-    };
-
-    let target_width_mm: f32 = 100.0;
-    let aspect_ratio = h_px as f32 / w_px as f32;
-    let target_height_mm = target_width_mm * aspect_ratio;
-
-    let pt_per_mm = 72.0 / 25.4;
-    let top_edge_y = Mm(287.0);
-    let bottom_edge_y = top_edge_y - Mm(target_height_mm);
-
-    printpdf::Image::from(image).add_to_layer(
-        ctx.current_layer.clone(),
-        ImageTransform {
-            translate_x: Some(Mm(20.0)),
-            translate_y: Some(bottom_edge_y),
-            rotate: None,
-            scale_x: Some((target_width_mm * pt_per_mm) / w_px as f32),
-            scale_y: Some((target_height_mm * pt_per_mm) / h_px as f32),
-            dpi: Some(72.0),
+pub fn draw_line(ops: &mut Vec<Op>, x1: Mm, x2: Mm, y: Mm) {
+    ops.push(Op::SetOutlineColor {
+        col: Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)),
+    });
+    ops.push(Op::SetOutlineThickness { pt: Pt(0.5) });
+    ops.push(Op::DrawLine {
+        line: Line {
+            points: vec![
+                LinePoint {
+                    p: Point {
+                        x: x1.into(),
+                        y: y.into(),
+                    },
+                    bezier: false,
+                },
+                LinePoint {
+                    p: Point {
+                        x: x2.into(),
+                        y: y.into(),
+                    },
+                    bezier: false,
+                },
+            ],
+            is_closed: false,
         },
-    );
-
-    ctx.y = bottom_edge_y - Mm(10.0);
-    Ok(())
-}
-
-fn draw_address_block(ctx: &mut PdfContext, lines: &[&str], x: Mm) {
-    for line in lines {
-        ctx.use_text_at(line, 10.0, x, ctx.y);
-        ctx.y -= Mm(5.0);
-    }
-}
-
-fn draw_table_header(ctx: &mut PdfContext, x: Mm) {
-    ctx.use_text_at("Product", 10.0, x, ctx.y);
-    ctx.use_text_at("Total", 10.0, Mm(160.0), ctx.y);
-    ctx.y -= Mm(5.0);
-    draw_line(&ctx.current_layer, x, Mm(190.0), ctx.y);
-    ctx.y -= Mm(7.0);
-}
-
-fn draw_product_row(ctx: &mut PdfContext, p: &Product, inv: &Invoice, loc: Locale, x: Mm) {
-    ctx.check_page_break(Mm(20.0));
-    let start_y = ctx.y;
-    let y_after = wrap_text(
-        &p.description,
-        80.0,
-        10.0,
-        &ctx.font,
-        &ctx.current_layer,
-        x,
-        ctx.y,
-    );
-    let total = (p.units as f64 * p.cost_per_unit) * (1.0 + p.tax_rate);
-    ctx.use_text_at(
-        &format_currency(total, &inv.currency_code, loc),
-        10.0,
-        Mm(160.0),
-        start_y,
-    );
-    ctx.y = y_after.min(ctx.y - Mm(2.0));
-}
-
-pub fn draw_line(layer: &PdfLayerReference, x1: Mm, x2: Mm, y: Mm) {
-    layer.add_line(Line {
-        points: vec![(Point::new(x1, y), false), (Point::new(x2, y), false)],
-        is_closed: false,
     });
 }
 
-pub fn wrap_text(
-    t: &str,
-    max: f32,
-    sz: f32,
-    f: &IndirectFontRef,
-    l: &PdfLayerReference,
-    x: Mm,
-    mut y: Mm,
-) -> Mm {
+pub fn wrap_text_ops(ctx: &mut PdfContext, t: &str, max_w: f32, sz: f32, x: Mm) -> Mm {
     let words: Vec<&str> = t.split_whitespace().collect();
     let mut line = String::new();
     for word in words {
-        if (line.len() + word.len()) as f32 * (sz * 0.35) > max {
-            l.use_text(&line, sz, x, y, f);
-            y -= Mm(sz * 0.4);
+        if (line.len() + word.len()) as f32 * (sz * 0.16) > max_w {
+            ctx.write_text(&line, sz, x);
             line.clear();
         }
         if !line.is_empty() {
@@ -364,6 +346,6 @@ pub fn wrap_text(
         }
         line.push_str(word);
     }
-    l.use_text(&line, sz, x, y, f);
-    y - Mm(sz * 0.4)
+    ctx.write_text(&line, sz, x);
+    ctx.y
 }
