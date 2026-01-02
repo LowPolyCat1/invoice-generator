@@ -83,7 +83,12 @@ fn test_format_currency() {
 #[test]
 fn test_generate_invoice_pdf_in_memory() {
     let invoice = make_test_invoice();
-    let pdf_bytes = generate_invoice_pdf(&invoice).unwrap();
+    let pdf_bytes = generate_invoice_pdf(
+        &invoice,
+        std::path::Path::new("./fonts/OpenSans-Medium.ttf"),
+        None,
+    )
+    .unwrap();
     assert!(!pdf_bytes.is_empty(), "PDF bytes should not be empty");
 }
 
@@ -91,7 +96,12 @@ fn test_generate_invoice_pdf_in_memory() {
 fn test_generate_and_save_pdf_tempfile() -> io::Result<()> {
     let invoice = make_test_invoice();
 
-    let pdf_bytes = generate_invoice_pdf(&invoice).expect("Failed to generate PDF");
+    let pdf_bytes = generate_invoice_pdf(
+        &invoice,
+        std::path::Path::new("./fonts/OpenSans-Medium.ttf"),
+        None,
+    )
+    .unwrap();
 
     let mut tmp_file = NamedTempFile::new()?;
     tmp_file.write_all(&pdf_bytes)?;
@@ -108,7 +118,12 @@ fn validation_test() {
     let mut invoice = make_test_invoice();
     invoice.number = invoice_id.to_string();
 
-    let pdf_bytes = generate_invoice_pdf(&invoice).expect("Failed to generate PDF");
+    let pdf_bytes = generate_invoice_pdf(
+        &invoice,
+        std::path::Path::new("./fonts/OpenSans-Medium.ttf"),
+        None,
+    )
+    .unwrap();
 
     let hash1 = compute_hmac(b"very secret secret", &pdf_bytes);
     let hash2 = compute_hmac(b"very secret secret", &pdf_bytes);
