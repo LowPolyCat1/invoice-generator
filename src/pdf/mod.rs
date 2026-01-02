@@ -1,7 +1,20 @@
 use printpdf::*;
 
 mod generate;
+mod logo;
+mod products;
 pub use generate::generate_invoice_pdf;
+mod addresses;
+mod fin_summary;
+mod header;
+mod payment_details;
+mod product_table;
+
+const LEFT_MARGIN: f32 = 20.0;
+const COL_1: Mm = Mm(LEFT_MARGIN);
+const COL_2: Mm = Mm(120.0);
+const PAGE_WIDTH: Mm = Mm(210.0);
+const PAGE_HEIGHT: Mm = Mm(297.0);
 
 pub struct PdfContext {
     pub font_id: FontId,

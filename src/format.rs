@@ -39,7 +39,7 @@ pub fn get_currency_info(currency_code: &str) -> CurrencyInfo {
     // TODO: add more currencies, JPY only here for testing 0 decimal digits
 }
 
-pub fn format_currency(value: f64, currency_code: &str, locale: Locale) -> String {
+pub fn format_currency(value: f64, currency_code: &str, locale: &Locale) -> String {
     let info = get_currency_info(currency_code);
 
     let factor = 10u64.pow(info.decimal_digits as u32) as f64;
@@ -48,7 +48,7 @@ pub fn format_currency(value: f64, currency_code: &str, locale: Locale) -> Strin
     let units = rounded / (factor as u64);
     let cents = rounded % (factor as u64);
 
-    let formatted_units = units.to_formatted_string(&locale);
+    let formatted_units = units.to_formatted_string(locale);
 
     let decimal_sep = match locale {
         Locale::de | Locale::fr | Locale::it | Locale::ja => ',',
