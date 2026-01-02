@@ -42,8 +42,6 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
     ctx.pages
         .push(PdfPage::new(PAGE_WIDTH, PAGE_HEIGHT, ctx.current_ops));
 
-    // We "take" the pages out of the context so the borrow checker
-    // sees ctx and pages as independent objects.
     let mut pages = ctx.pages.clone();
     let total_pages = pages.len();
 
@@ -54,13 +52,10 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
         let x_pos = PAGE_WIDTH - RIGHT_MARGIN - Mm(20.0);
         let y_pos = BOTTOM_MARGIN;
 
-        // 2. Clear current_ops in ctx to prepare for fresh drawing
         ctx.current_ops = Vec::new();
 
-        // 3. Draw the text (this populates ctx.current_ops)
         ctx.write_text_at(&pagination_text, 10.0, x_pos, y_pos);
 
-        // 4. Append the new pagination operations to the existing page operations
         page.ops.append(&mut ctx.current_ops);
     }
 

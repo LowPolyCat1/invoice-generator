@@ -5,6 +5,7 @@ mod logo;
 mod products;
 pub use generate::generate_invoice_pdf;
 mod addresses;
+mod cols;
 mod fin_summary;
 mod header;
 mod payment_details;
@@ -92,6 +93,42 @@ impl PdfContext {
         }
         self.write_text(&line, sz, x);
         self.y
+    }
+    pub fn write_text_at_wrapping(
+        &mut self,
+        text: &str,
+        size: f32,
+        x: Mm,
+        y: Mm,
+        max_w: f32,
+    ) -> Mm {
+        let words: Vec<&str> = text.split_whitespace().collect();
+        let mut current_y = y;
+        let line_height = Mm::from(Pt(size * 1.2));
+        let mut line = String::new();
+
+        for word in words {
+            let estimated_width = (line.len() + word.len() + 1) as f32 * (size * 0.16);
+
+            if estimated_width > max_w && !line.is_empty() {
+                self.write_text_at(&line, size, x, current_y);
+
+                current_y.0 += line_height.0;
+                line.clear();
+            }
+
+            if !line.is_empty() {
+                line.push(' ');
+            }
+            line.push_str(word);
+        }
+
+        if !line.is_empty() {
+            self.write_text_at(&line, size, x, current_y);
+            current_y.0 += line_height.0;
+        }
+
+        current_y
     }
 }
 
