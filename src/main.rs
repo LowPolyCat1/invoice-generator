@@ -59,7 +59,12 @@ fn main() {
         locale_code: "de".to_string(),
     };
 
-    let pdf_bytes = generate_invoice_pdf(&invoice).expect("Failed to create PDF");
+    let pdf_bytes = generate_invoice_pdf(
+        &invoice,
+        "./fonts/OpenSans-Medium.ttf",
+        Some("./res/image.png"),
+    )
+    .expect("Failed to create PDF");
 
     let mut file = File::create("./invoice.pdf").expect("Unable to create output file");
     file.write_all(&pdf_bytes).expect("Failed to write PDF");
