@@ -130,6 +130,15 @@ impl PdfContext {
 
         current_y
     }
+
+    pub fn measure_text_height(&self, text: &str, font_size: f32, max_w: f32) -> Mm {
+        let avg_char_width = font_size;
+        let chars_per_line = (max_w / (avg_char_width * 0.3527)).floor().max(1.0);
+        let line_count = (text.len() as f32 / chars_per_line).ceil().max(1.0);
+
+        let line_height_pts = font_size * 1.2;
+        Mm(line_count * (line_height_pts * 0.352778))
+    }
 }
 
 pub fn draw_line(ops: &mut Vec<Op>, x1: Mm, x2: Mm, y: Mm) {

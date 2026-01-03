@@ -11,47 +11,68 @@ pub fn draw_financial_summary(
     tax_map: &std::collections::BTreeMap<ordered_float::OrderedFloat<f64>, f64>,
     total: f64,
 ) {
-    ctx.y -= Mm(2.0);
-    let start_y = ctx.y;
     let right_edge = Mm(190.0);
     let label_x = COL_2 + Mm(2.0);
     let value_x = Mm(165.0);
-
     let label_width = (value_x.0 - label_x.0) - 2.0;
     let val_width = (right_edge.0 - value_x.0) - 2.0;
 
+    let mut total_box_height = Mm(0.0);
+    total_box_height += Mm(2.0);
+
+    let sub_text = format_currency(subtotal, &invoice.currency_code, locale);
+    total_box_height += ctx
+        .measure_text_height(&sub_text, 9.0, val_width)
+        .max(Mm(6.0));
+
+    for (_rate, amt) in tax_map {
+        total_box_height += Mm(2.0);
+        let tax_text = format_currency(*amt, &invoice.currency_code, locale);
+        total_box_height += ctx
+            .measure_text_height(&tax_text, 9.0, val_width)
+            .max(Mm(5.0));
+    }
+
+    total_box_height += Mm(2.0);
+    let total_text = format_currency(total, &invoice.currency_code, locale);
+    total_box_height += ctx
+        .measure_text_height(&total_text, 12.0, val_width)
+        .max(Mm(8.0));
+    total_box_height += Mm(3.0);
+
+    if ctx.y - total_box_height < BOTTOM_MARGIN {
+        ctx.pages.push(PdfPage::new(
+            PAGE_WIDTH,
+            PAGE_HEIGHT,
+            ctx.current_ops.drain(..).collect(),
+        ));
+        ctx.y = Mm(280.0);
+    }
+
+    ctx.y -= Mm(2.0);
+    let start_y = ctx.y;
     draw_line(&mut ctx.current_ops, COL_2, right_edge, start_y);
 
     ctx.y -= Mm(6.0);
-    let row_y = ctx.y;
-
-    ctx.write_text_at_wrapping("Subtotal:", 9.0, label_x, row_y, label_width);
-
-    ctx.y = ctx.write_text_at_wrapping(
-        &format_currency(subtotal, &invoice.currency_code, locale),
-        9.0,
-        value_x,
-        row_y,
-        val_width,
-    );
+    let sub_y = ctx.y;
+    ctx.write_text_at_wrapping("Subtotal:", 9.0, label_x, sub_y, label_width);
+    ctx.y = ctx.write_text_at_wrapping(&sub_text, 9.0, value_x, sub_y, val_width);
 
     for (rate, amt) in tax_map {
         ctx.y -= Mm(2.0);
-        let tax_row_y = ctx.y;
-
+        let tax_y = ctx.y;
         ctx.write_text_at_wrapping(
             &format!("Tax ({:.0}%):", rate.0 * 100.0),
             9.0,
             label_x,
-            tax_row_y,
+            tax_y,
             label_width,
         );
-
         ctx.y = ctx.write_text_at_wrapping(
             &format_currency(*amt, &invoice.currency_code, locale),
             9.0,
             value_x,
-            tax_row_y,
+            tax_y,
             val_width,
         );
     }
@@ -60,24 +81,14 @@ pub fn draw_financial_summary(
     draw_line(&mut ctx.current_ops, COL_2, right_edge, ctx.y);
 
     ctx.y -= Mm(6.0);
-    let total_row_y = ctx.y;
+    let tot_y = ctx.y;
+    ctx.write_text_at_wrapping("Total:", 9.0, label_x, tot_y, label_width);
+    ctx.y = ctx.write_text_at_wrapping(&total_text, 9.0, value_x, tot_y, val_width);
 
-    ctx.write_text_at_wrapping("TOTAL:", 12.0, label_x, total_row_y, label_width);
-
-    ctx.y = ctx.write_text_at_wrapping(
-        &format_currency(total, &invoice.currency_code, locale),
-        12.0,
-        value_x,
-        total_row_y,
-        val_width,
-    );
-
-    let end_y = ctx.y - Mm(3.0);
-
+    let end_y = ctx.y;
     draw_v_line(&mut ctx.current_ops, COL_2, start_y, end_y);
     draw_v_line(&mut ctx.current_ops, Mm(160.0), start_y, end_y);
     draw_v_line(&mut ctx.current_ops, right_edge, start_y, end_y);
-
     draw_line(&mut ctx.current_ops, COL_2, right_edge, end_y);
 
     ctx.y = end_y;
