@@ -35,12 +35,16 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
     draw_product_table(&mut ctx, invoice, &locale)?;
 
     let summary_top = ctx.y - Mm(8.0);
+
     draw_financial_summary(&mut ctx, invoice, &locale, subtotal, &tax_totals, total);
 
     draw_payment_details(&mut ctx, invoice, summary_top);
 
-    ctx.pages
-        .push(PdfPage::new(PAGE_WIDTH, PAGE_HEIGHT, ctx.current_ops));
+    ctx.pages.push(PdfPage::new(
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+        ctx.current_ops.clone(),
+    ));
 
     let mut pages = ctx.pages.clone();
     let total_pages = pages.len();
@@ -51,10 +55,11 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
 
         let x_pos = PAGE_WIDTH - RIGHT_MARGIN - Mm(20.0);
         let y_pos = BOTTOM_MARGIN;
+        let p_width = Mm(20.0).0;
 
         ctx.current_ops = Vec::new();
 
-        ctx.write_text_at(&pagination_text, 10.0, x_pos, y_pos);
+        ctx.write_text_at_wrapping(&pagination_text, 10.0, x_pos, y_pos, p_width);
 
         page.ops.append(&mut ctx.current_ops);
     }

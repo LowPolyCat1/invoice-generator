@@ -8,13 +8,10 @@ pub fn col_pos(weights: Vec<i16>, page_width: Mm, margin_left: Mm, margin_right:
     let mut current_x = margin_left.0;
 
     for weight in weights {
-        // Push the starting X coordinate of the current column
         positions.push(Mm(current_x));
 
-        // Calculate the width of this column based on its weight
         let col_width = (weight as f32 / total_weight as f32) * available_width;
 
-        // Advance current_x for the next column
         current_x += col_width;
     }
 

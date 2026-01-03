@@ -59,7 +59,7 @@ impl PdfContext {
         self.y -= Mm(size * 0.45);
     }
 
-    pub fn write_text_at(&mut self, text: &str, size: f32, x: Mm, y: Mm) {
+    fn write_text_at(&mut self, text: &str, size: f32, x: Mm, y: Mm) {
         self.current_ops.push(Op::StartTextSection);
         self.current_ops.push(Op::SetTextCursor {
             pos: Point {
@@ -94,6 +94,7 @@ impl PdfContext {
         self.write_text(&line, sz, x);
         self.y
     }
+
     pub fn write_text_at_wrapping(
         &mut self,
         text: &str,
@@ -112,8 +113,7 @@ impl PdfContext {
 
             if estimated_width > max_w && !line.is_empty() {
                 self.write_text_at(&line, size, x, current_y);
-
-                current_y.0 += line_height.0;
+                current_y -= line_height;
                 line.clear();
             }
 
@@ -125,7 +125,7 @@ impl PdfContext {
 
         if !line.is_empty() {
             self.write_text_at(&line, size, x, current_y);
-            current_y.0 += line_height.0;
+            current_y -= line_height;
         }
 
         current_y
