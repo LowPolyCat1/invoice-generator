@@ -5,6 +5,7 @@ use crate::invoice::*;
 use crate::pdf::PAGE_HEIGHT;
 use crate::pdf::PAGE_WIDTH;
 use locale_rs::Locale;
+use locale_rs::currency_formats::ToCurrencyString;
 use locale_rs::num_formats::ToFormattedString;
 use printpdf::*;
 
@@ -50,7 +51,7 @@ pub fn draw_products(
             units_w,
         );
         let y3 = ctx.write_text_at_wrapping(
-            &p.cost_per_unit.to_formatted_string(locale),
+            &p.cost_per_unit.to_currency(locale),
             9.0,
             cols[2] + Mm(2.0),
             start_y,
@@ -63,7 +64,7 @@ pub fn draw_products(
         };
         let y4 = ctx.write_text_at_wrapping(&tax_val, 9.0, cols[3] + Mm(2.0), start_y, tax_w);
         let y5 = ctx.write_text_at_wrapping(
-            &line_total.to_formatted_string(locale),
+            &line_total.to_currency(locale),
             9.0,
             cols[4] + Mm(2.0),
             start_y,

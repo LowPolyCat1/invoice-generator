@@ -1,4 +1,5 @@
 use locale_rs::Locale;
+use locale_rs::currency_formats::ToCurrencyString;
 use locale_rs::num_formats::ToFormattedString;
 
 use crate::invoice::*;
@@ -21,21 +22,21 @@ pub fn draw_financial_summary(
     let mut total_box_height = Mm(0.0);
     total_box_height += Mm(2.0);
 
-    let sub_text = subtotal.to_formatted_string(locale);
+    let sub_text = subtotal.to_currency(locale);
     total_box_height += ctx
         .measure_text_height(&sub_text, 9.0, val_width)
         .max(Mm(6.0));
 
     for (_rate, amt) in tax_map {
         total_box_height += Mm(2.0);
-        let tax_text = amt.to_formatted_string(locale);
+        let tax_text = amt.to_currency(locale);
         total_box_height += ctx
             .measure_text_height(&tax_text, 9.0, val_width)
             .max(Mm(5.0));
     }
 
     total_box_height += Mm(2.0);
-    let total_text = total.to_formatted_string(locale);
+    let total_text = total.to_currency(locale);
     total_box_height += ctx
         .measure_text_height(&total_text, 12.0, val_width)
         .max(Mm(8.0));
@@ -69,13 +70,8 @@ pub fn draw_financial_summary(
             tax_y,
             label_width,
         );
-        ctx.y = ctx.write_text_at_wrapping(
-            &amt.to_formatted_string(locale),
-            9.0,
-            value_x,
-            tax_y,
-            val_width,
-        );
+        ctx.y =
+            ctx.write_text_at_wrapping(&amt.to_currency(locale), 9.0, value_x, tax_y, val_width);
     }
 
     ctx.y -= Mm(2.0);
