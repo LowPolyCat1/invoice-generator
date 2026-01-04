@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use num_format::{Locale, ToFormattedString};
 
 #[derive(Debug, Clone)]
@@ -74,13 +76,5 @@ pub fn format_currency(value: f64, currency_code: &str, locale: &Locale) -> Stri
 }
 
 pub fn get_locale_by_code(code: &str) -> Locale {
-    match code {
-        "de" | "de-DE" => Locale::de,
-        "en" | "en-US" => Locale::en,
-        "fr" | "fr-FR" => Locale::fr,
-        "it" | "it-IT" => Locale::it,
-        "es" | "es-ES" => Locale::es,
-        _ => Locale::en,
-    }
-    // TODO: support more Locale
+    Locale::from_str(code).unwrap_or(Locale::en)
 }
