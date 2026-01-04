@@ -1,11 +1,12 @@
 use invoice::{Buyer, Invoice, Locale, Product, Seller, generate_invoice_pdf};
+use locale_rs::datetime_formats::DateTime;
 use std::fs::File;
 use std::io::Write;
 
 fn main() {
     let invoice = Invoice {
         number: "INV-2025-EXAMPLE".to_string(),
-        date: "2025-07-15".to_string(),
+        date: DateTime { year: 2025, month: 7, day: 15, hour: 0, minute: 0, second: 0 },
         seller: Seller {
             name: "Example Corp".to_string(),
             address: "123 Main Street, 90210 Anytown".to_string(),
@@ -17,8 +18,8 @@ fn main() {
             address: "456 Oak Avenue, 10001 Cityville".to_string(),
             email: "john.doe@example.com".to_string(),
         },
-        payment_due: "2025-08-15".to_string(),
-        delivery_date: "2025-07-14".to_string(),
+        payment_due: DateTime { year: 2025, month: 8, day: 15, hour: 0, minute: 0, second: 0 },
+        delivery_date: DateTime { year: 2025, month: 7, day: 14, hour: 0, minute: 0, second: 0 },
         delivery_type: Some("Standard Shipping".to_string()),
         extra_info: vec![
             ("Order Reference".to_string(), "987654321".to_string()),

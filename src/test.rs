@@ -1,4 +1,4 @@
-use locale_rs::Locale;
+use locale_rs::{Locale, datetime_formats::DateTime};
 use std::{
     fs,
     io::{self, Write},
@@ -22,7 +22,14 @@ fn compute_hmac(key: &[u8], data: &[u8]) -> String {
 fn make_test_invoice() -> Invoice {
     Invoice {
         number: "TEST-001".to_string(),
-        date: "2025-07-30".to_string(),
+        date: DateTime {
+            year: 2025,
+            month: 7,
+            day: 15,
+            hour: 0,
+            minute: 0,
+            second: 0,
+        },
         seller: Seller {
             name: "Test Seller".to_string(),
             address: "123 Test Street".to_string(),
@@ -34,8 +41,22 @@ fn make_test_invoice() -> Invoice {
             address: "456 Buyer Road".to_string(),
             email: "buyer@example.com".to_string(),
         },
-        payment_due: "2025-08-15".to_string(),
-        delivery_date: "2025-07-30".to_string(),
+        payment_due: DateTime {
+            year: 2025,
+            month: 7,
+            day: 15,
+            hour: 0,
+            minute: 0,
+            second: 0,
+        },
+        delivery_date: DateTime {
+            year: 2025,
+            month: 7,
+            day: 15,
+            hour: 0,
+            minute: 0,
+            second: 0,
+        },
         delivery_type: None,
         extra_info: vec![],
         payment_type: None,

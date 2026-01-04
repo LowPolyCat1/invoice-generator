@@ -15,14 +15,17 @@ pub fn draw_header_info(ctx: &mut PdfContext, invoice: &Invoice) {
 
     let row_1_y = ctx.y;
     let left_y = ctx.write_text_at_wrapping(
-        &format!("Date: {}", invoice.date),
+        &invoice.locale.format_date(&invoice.date),
         10.0,
         COL_1,
         row_1_y,
         col_width,
     );
     let right_y = ctx.write_text_at_wrapping(
-        &format!("Payment Due: {}", invoice.payment_due),
+        &format!(
+            "Payment Due: {}",
+            &invoice.locale.format_date(&invoice.payment_due)
+        ),
         10.0,
         COL_2,
         row_1_y,
@@ -43,7 +46,10 @@ pub fn draw_header_info(ctx: &mut PdfContext, invoice: &Invoice) {
             col_width,
         );
         let right_y = ctx.write_text_at_wrapping(
-            &format!("Delivery Date: {}", invoice.delivery_date),
+            &format!(
+                "Delivery Date: {}",
+                &invoice.locale.format_date(&invoice.delivery_date)
+            ),
             10.0,
             COL_2,
             row_2_y,
@@ -52,7 +58,10 @@ pub fn draw_header_info(ctx: &mut PdfContext, invoice: &Invoice) {
         ctx.y = left_y.min(right_y) - Mm(1.);
     } else {
         ctx.y = ctx.write_text_at_wrapping(
-            &format!("Delivery Date: {}", invoice.delivery_date),
+            &format!(
+                "Delivery Date: {}",
+                &invoice.locale.format_date(&invoice.delivery_date)
+            ),
             10.0,
             COL_2,
             row_2_y,
