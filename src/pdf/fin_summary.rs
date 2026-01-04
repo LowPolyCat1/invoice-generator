@@ -1,13 +1,10 @@
 use locale_rs::Locale;
 use locale_rs::currency_formats::ToCurrencyString;
-use locale_rs::num_formats::ToFormattedString;
 
-use crate::invoice::*;
 use crate::pdf::*;
 
 pub fn draw_financial_summary(
     ctx: &mut PdfContext,
-    invoice: &Invoice,
     locale: &Locale,
     subtotal: f64,
     tax_map: &std::collections::BTreeMap<ordered_float::OrderedFloat<f64>, f64>,

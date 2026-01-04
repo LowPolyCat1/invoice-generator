@@ -35,7 +35,7 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
 
     let summary_top = ctx.y - Mm(8.0);
 
-    draw_financial_summary(&mut ctx, invoice, &locale, subtotal, &tax_totals, total);
+    draw_financial_summary(&mut ctx, &locale, subtotal, &tax_totals, total);
 
     draw_payment_details(&mut ctx, invoice, summary_top);
 
