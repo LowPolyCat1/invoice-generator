@@ -1,11 +1,11 @@
 use crate::PdfContext;
 use crate::draw_line;
 use crate::draw_v_line;
-use crate::format_currency;
 use crate::invoice::*;
 use crate::pdf::PAGE_HEIGHT;
 use crate::pdf::PAGE_WIDTH;
-use num_format::Locale;
+use locale_rs::Locale;
+use locale_rs::num_formats::ToFormattedString;
 use printpdf::*;
 
 pub fn draw_products(
@@ -50,7 +50,7 @@ pub fn draw_products(
             units_w,
         );
         let y3 = ctx.write_text_at_wrapping(
-            &format_currency(p.cost_per_unit, &invoice.currency_code, locale),
+            &p.cost_per_unit.to_formatted_string(locale),
             9.0,
             cols[2] + Mm(2.0),
             start_y,
@@ -59,11 +59,11 @@ pub fn draw_products(
 
         let tax_val = match &p.tax_exempt_reason {
             Some(reason) => reason.clone(),
-            None => format_currency(p.tax_rate, &invoice.currency_code, locale),
+            None => p.tax_rate.to_formatted_string(locale),
         };
         let y4 = ctx.write_text_at_wrapping(&tax_val, 9.0, cols[3] + Mm(2.0), start_y, tax_w);
         let y5 = ctx.write_text_at_wrapping(
-            &format_currency(line_total, &invoice.currency_code, locale),
+            &line_total.to_formatted_string(locale),
             9.0,
             cols[4] + Mm(2.0),
             start_y,

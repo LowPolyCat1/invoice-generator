@@ -1,4 +1,3 @@
-use crate::format::get_locale_by_code;
 use crate::invoice::*;
 use crate::pdf::addresses::draw_address_section;
 use crate::pdf::fin_summary::draw_financial_summary;
@@ -19,7 +18,7 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
     let font_id =
         doc.add_font(&ParsedFont::from_bytes(&font_bytes, 0, &mut Vec::new()).ok_or("Font Error")?);
     let mut ctx = PdfContext::new(font_id);
-    let locale = get_locale_by_code(&invoice.locale_code);
+    let locale = &invoice.locale;
 
     draw_logo(
         &mut ctx,

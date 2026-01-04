@@ -1,3 +1,4 @@
+use locale_rs::Locale;
 use std::{
     fs,
     io::{self, Write},
@@ -5,7 +6,7 @@ use std::{
 use tempfile::NamedTempFile;
 
 use crate::{
-    format_currency, generate_invoice_pdf,
+    generate_invoice_pdf,
     invoice::{Buyer, Invoice, Product, Seller},
 };
 use hmac::{Hmac, Mac};
@@ -55,29 +56,8 @@ fn make_test_invoice() -> Invoice {
                 tax_exempt_reason: None,
             },
         ],
-        currency_code: "EUR".to_string(),
-        locale_code: "de".to_string(),
+        locale: Locale::de,
     }
-}
-
-#[test]
-fn test_format_currency() {
-    assert_eq!(
-        format_currency(0.0, "EUR", &num_format::Locale::de),
-        "0,00 €"
-    );
-    assert_eq!(
-        format_currency(1234.56, "EUR", &num_format::Locale::de),
-        "1.234,56 €"
-    );
-    assert_eq!(
-        format_currency(12.5, "EUR", &num_format::Locale::de),
-        "12,50 €"
-    );
-    assert_eq!(
-        format_currency(1234.0, "JPY", &num_format::Locale::ja),
-        "¥1,234"
-    );
 }
 
 #[test]

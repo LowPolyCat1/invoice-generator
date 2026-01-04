@@ -1,8 +1,9 @@
+use locale_rs::Locale;
+
 use crate::invoice::*;
 use crate::pdf::cols::col_pos;
 use crate::pdf::products::draw_products;
 use crate::pdf::*;
-use num_format::Locale;
 
 pub fn draw_product_table(
     ctx: &mut PdfContext,

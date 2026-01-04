@@ -48,7 +48,7 @@ invoice-gen = { path = <path> }
 ## Quick Start
 
 ```rust
-use invoice::{Buyer, Invoice, Product, Seller, generate_invoice_pdf};
+use invoice::{Buyer, Invoice, Locale, Product, Seller, generate_invoice_pdf};
 use std::fs::File;
 use std::io::Write;
 
@@ -105,8 +105,7 @@ fn main() {
                 tax_exempt_reason: Some("Intra-EU reverse charge".to_string()),
             },
         ],
-        currency_code: "EUR".to_string(),
-        locale_code: "de".to_string(),
+        locale: Locale::de,
     };
 
     let pdf_bytes = generate_invoice_pdf(

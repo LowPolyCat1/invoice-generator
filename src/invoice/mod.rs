@@ -1,3 +1,4 @@
+use locale_rs::Locale;
 use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
 
@@ -34,8 +35,7 @@ pub struct Invoice {
     pub payment_type: Option<String>,
     pub payment_info: Vec<(String, String)>,
     pub products: Vec<Product>,
-    pub currency_code: String,
-    pub locale_code: String,
+    pub locale: Locale,
 }
 
 impl Invoice {

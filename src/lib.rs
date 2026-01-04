@@ -5,7 +5,7 @@ mod invoice;
 pub use invoice::*;
 mod validation;
 pub use validation::*;
-mod format;
-pub use format::*;
 mod pdf;
 pub use pdf::*;
+
+pub use locale_rs::Locale;

@@ -1,7 +1,8 @@
-use crate::format::format_currency;
+use locale_rs::Locale;
+use locale_rs::num_formats::ToFormattedString;
+
 use crate::invoice::*;
 use crate::pdf::*;
-use num_format::Locale;
 
 pub fn draw_financial_summary(
     ctx: &mut PdfContext,
@@ -20,21 +21,21 @@ pub fn draw_financial_summary(
     let mut total_box_height = Mm(0.0);
     total_box_height += Mm(2.0);
 
-    let sub_text = format_currency(subtotal, &invoice.currency_code, locale);
+    let sub_text = subtotal.to_formatted_string(locale);
     total_box_height += ctx
         .measure_text_height(&sub_text, 9.0, val_width)
         .max(Mm(6.0));
 
     for (_rate, amt) in tax_map {
         total_box_height += Mm(2.0);
-        let tax_text = format_currency(*amt, &invoice.currency_code, locale);
+        let tax_text = amt.to_formatted_string(locale);
         total_box_height += ctx
             .measure_text_height(&tax_text, 9.0, val_width)
             .max(Mm(5.0));
     }
 
     total_box_height += Mm(2.0);
-    let total_text = format_currency(total, &invoice.currency_code, locale);
+    let total_text = total.to_formatted_string(locale);
     total_box_height += ctx
         .measure_text_height(&total_text, 12.0, val_width)
         .max(Mm(8.0));
@@ -69,7 +70,7 @@ pub fn draw_financial_summary(
             label_width,
         );
         ctx.y = ctx.write_text_at_wrapping(
-            &format_currency(*amt, &invoice.currency_code, locale),
+            &amt.to_formatted_string(locale),
             9.0,
             value_x,
             tax_y,
