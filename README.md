@@ -22,7 +22,7 @@ This library is designed to meet the requirements for both **EU VAT/Reverse Char
 
 Below is an example of a generated invoice.
 
-![Invoice Preview](./invoice.pdf)
+<embed src="./invoice.pdf" type="application/pdf">
 
 ---
 
