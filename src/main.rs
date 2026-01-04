@@ -8,13 +8,13 @@ fn main() {
         date: "2025-07-15".to_string(),
         seller: Seller {
             name: "Example Corp".to_string(),
-            address: "123 Main Street\n90210 Anytown".to_string(),
+            address: "123 Main Street, 90210 Anytown".to_string(),
             vat_id: "VAT-EX-00000000".to_string(),
             website: "examplecorp.com".to_string(),
         },
         buyer: Buyer {
             name: "John Doe".to_string(),
-            address: "456 Oak Avenue\n10001 Cityville".to_string(),
+            address: "456 Oak Avenue, 10001 Cityville".to_string(),
             email: "john.doe@example.com".to_string(),
         },
         payment_due: "2025-08-15".to_string(),
@@ -34,7 +34,7 @@ fn main() {
         ],
         products: vec![
             Product {
-                description: "Rusty Widget with very long description".to_string(),
+                description: "Rusty Widget with very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long description".to_string(),
                 units: 10,
                 cost_per_unit: 9.99,
                 tax_rate: 0.19,
@@ -45,7 +45,7 @@ fn main() {
                 units: 5,
                 cost_per_unit: 19.95,
                 tax_rate: 0.07,
-                tax_exempt_reason: None,
+                tax_exempt_reason: Some("WOOW".to_string()),
             },
             Product {
                 description: "Exported Item (Reverse Charge)".to_string(),
@@ -62,7 +62,7 @@ fn main() {
     let pdf_bytes = generate_invoice_pdf(
         &invoice,
         "./fonts/OpenSans-Medium.ttf",
-        Some("./res/image.png"),
+        Some("./res/logo.jpg"),
     )
     .expect("Failed to create PDF");
 
