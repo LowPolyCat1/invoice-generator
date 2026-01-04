@@ -8,7 +8,7 @@ pub fn draw_address_section(ctx: &mut PdfContext, invoice: &Invoice) {
     let header_y = ctx.y;
     let seller_h_y = ctx.write_text_at_wrapping("Sold by", 15.0, COL_1, header_y, col_width);
     let buyer_h_y = ctx.write_text_at_wrapping("Billed to", 15.0, COL_2, header_y, col_width);
-    ctx.y = seller_h_y.min(buyer_h_y) - Mm(2.0);
+    ctx.y = seller_h_y.min(buyer_h_y);
 
     let name_row_y = ctx.y;
     let seller_n_y =
