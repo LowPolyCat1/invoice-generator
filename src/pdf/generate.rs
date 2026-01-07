@@ -50,7 +50,7 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
         .save(&PdfSaveOptions::default(), &mut Vec::new());
 
     let mut lopdf_doc = lopdf::Document::load_mem(&pdf_bytes)?;
-    let xml_content = generate_cii_xml(invoice, subtotal, total);
+    let xml_content = generate_cii_xml(invoice);
     let catalog_id = lopdf_doc.trailer.get(b"Root")?.as_reference()?;
 
     inject_xmp_metadata(&mut lopdf_doc, catalog_id)?;

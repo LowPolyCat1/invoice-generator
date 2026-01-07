@@ -86,16 +86,20 @@ pub fn embed_facturx_xml(
     doc.set_object(catalog_id, Object::Dictionary(catalog));
     Ok(())
 }
+pub fn generate_cii_xml(invoice: &Invoice) -> String {
+    let (subtotal, tax_totals, total) = invoice.calculate_summary();
 
-pub fn generate_cii_xml(invoice: &Invoice, subtotal: f64, total: f64) -> String {
     let issue_date = format!(
         "{}{:02}{:02}",
         invoice.date.year, invoice.date.month, invoice.date.day
     );
-    let tax_amount = total - subtotal;
 
+    // 1. Line Items
     let mut items_xml = String::new();
     for (idx, p) in invoice.products.iter().enumerate() {
+        let line_total = p.units as f64 * p.cost_per_unit;
+        let tax_category = if p.tax_rate == 0.0 { "E" } else { "S" };
+
         items_xml.push_str(&format!(
             r#"        <ram:IncludedSupplyChainTradeLineItem>
             <ram:AssociatedDocumentLineDocument><ram:LineID>{}</ram:LineID></ram:AssociatedDocumentLineDocument>
@@ -107,7 +111,7 @@ pub fn generate_cii_xml(invoice: &Invoice, subtotal: f64, total: f64) -> String 
             <ram:SpecifiedLineTradeSettlement>
                 <ram:ApplicableTradeTax>
                     <ram:TypeCode>VAT</ram:TypeCode>
-                    <ram:CategoryCode>S</ram:CategoryCode>
+                    <ram:CategoryCode>{}</ram:CategoryCode>
                     <ram:RateApplicablePercent>{:.2}</ram:RateApplicablePercent>
                 </ram:ApplicableTradeTax>
                 <ram:SpecifiedTradeSettlementLineMonetarySummation>
@@ -116,7 +120,42 @@ pub fn generate_cii_xml(invoice: &Invoice, subtotal: f64, total: f64) -> String 
             </ram:SpecifiedLineTradeSettlement>
         </ram:IncludedSupplyChainTradeLineItem>
 "#,
-            idx + 1, p.description, p.cost_per_unit, p.units, p.tax_rate * 100.0, (p.units as f64 * p.cost_per_unit)
+            idx + 1, p.description, p.cost_per_unit, p.units, tax_category, p.tax_rate * 100.0, line_total
+        ));
+    }
+
+    // 2. Tax Summary Blocks (One for each unique tax rate)
+    let mut tax_summary_xml = String::new();
+    for (rate, amount) in &tax_totals {
+        let rate_val = rate.into_inner();
+        let basis_amount = amount / rate_val; // Reconstruct basis for this specific rate
+        tax_summary_xml.push_str(&format!(
+            r#"            <ram:ApplicableTradeTax>
+                <ram:CalculatedAmount>{:.2}</ram:CalculatedAmount>
+                <ram:TypeCode>VAT</ram:TypeCode>
+                <ram:BasisAmount>{:.2}</ram:BasisAmount>
+                <ram:CategoryCode>S</ram:CategoryCode>
+                <ram:RateApplicablePercent>{:.2}</ram:RateApplicablePercent>
+            </ram:ApplicableTradeTax>
+"#,
+            amount,
+            basis_amount,
+            rate_val * 100.0
+        ));
+    }
+
+    // Handle 0% tax if no taxes were collected but items exist
+    if tax_totals.is_empty() {
+        tax_summary_xml.push_str(&format!(
+            r#"            <ram:ApplicableTradeTax>
+                <ram:CalculatedAmount>0.00</ram:CalculatedAmount>
+                <ram:TypeCode>VAT</ram:TypeCode>
+                <ram:BasisAmount>{:.2}</ram:BasisAmount>
+                <ram:CategoryCode>E</ram:CategoryCode>
+                <ram:RateApplicablePercent>0.00</ram:RateApplicablePercent>
+            </ram:ApplicableTradeTax>
+"#,
+            subtotal
         ));
     }
 
@@ -137,20 +176,30 @@ r#"<?xml version="1.0" encoding="UTF-8"?>
     </rsm:ExchangedDocument>
     <rsm:SupplyChainTradeTransaction>
 {}        <ram:ApplicableHeaderTradeAgreement>
-            <ram:SellerTradeParty><ram:Name>{}</ram:Name></ram:SellerTradeParty>
-            <ram:BuyerTradeParty><ram:Name>{}</ram:Name></ram:BuyerTradeParty>
+            <ram:SellerTradeParty>
+                <ram:Name>{}</ram:Name>
+                <ram:SpecifiedLegalOrganization>
+                    <ram:ID>{}</ram:ID>
+                </ram:SpecifiedLegalOrganization>
+                <ram:PostalTradeAddress>
+                    <ram:PostcodeCode>{}</ram:PostcodeCode>
+                    <ram:LineOne>{} {}</ram:LineOne>
+                    <ram:CityName>{}</ram:CityName>
+                    <ram:CountryID>RS</ram:CountryID>
+                </ram:PostalTradeAddress>
+            </ram:SellerTradeParty>
+            <ram:BuyerTradeParty>
+                <ram:Name>Buyer Name</ram:Name>
+                <ram:PostalTradeAddress>
+                    <ram:LineOne>{}</ram:LineOne>
+                    <ram:CountryID>RS</ram:CountryID>
+                </ram:PostalTradeAddress>
+            </ram:BuyerTradeParty>
         </ram:ApplicableHeaderTradeAgreement>
         <ram:ApplicableHeaderTradeDelivery/>
         <ram:ApplicableHeaderTradeSettlement>
             <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>
-            <ram:ApplicableTradeTax>
-                <ram:CalculatedAmount>{:.2}</ram:CalculatedAmount>
-                <ram:TypeCode>VAT</ram:TypeCode>
-                <ram:BasisAmount>{:.2}</ram:BasisAmount>
-                <ram:CategoryCode>S</ram:CategoryCode>
-                <ram:RateApplicablePercent>19.00</ram:RateApplicablePercent>
-            </ram:ApplicableTradeTax>
-            <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+{}            <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
                 <ram:LineTotalAmount>{:.2}</ram:LineTotalAmount>
                 <ram:TaxBasisTotalAmount>{:.2}</ram:TaxBasisTotalAmount>
                 <ram:TaxTotalAmount currencyID="EUR">{:.2}</ram:TaxTotalAmount>
@@ -164,12 +213,15 @@ r#"<?xml version="1.0" encoding="UTF-8"?>
         issue_date,
         items_xml,
         invoice.seller.name,
-        invoice.buyer.name,
-        tax_amount,
+        invoice.seller.vat_id,
+        invoice.seller.address.code,
+        invoice.seller.address.street, invoice.seller.address.house_number,
+        invoice.seller.address.town,
+        invoice.buyer.address, // Buyer uses String address in your struct
+        tax_summary_xml,
         subtotal,
         subtotal,
-        subtotal,
-        tax_amount,
+        tax_totals.values().sum::<f64>(),
         total,
         total
     ).trim().to_string()
