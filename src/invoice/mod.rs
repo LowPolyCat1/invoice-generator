@@ -5,14 +5,33 @@ use std::collections::BTreeMap;
 
 pub struct Seller {
     pub name: String,
-    pub address: String,
+    pub address: Address,
     pub vat_id: String,
     pub website: String,
 }
 
+pub struct Address {
+    pub street: String,
+    pub house_number: u16,
+    pub code: u32,
+    pub town: String,
+}
+
+use std::fmt;
+
+impl fmt::Display for Address {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} {}, {} {}",
+            self.street, self.house_number, self.code, self.town
+        )
+    }
+}
+
 pub struct Buyer {
     pub name: String,
-    pub address: String,
+    pub address: Address,
     pub email: String,
 }
 

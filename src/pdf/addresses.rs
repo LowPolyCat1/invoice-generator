@@ -17,8 +17,23 @@ pub fn draw_address_section(ctx: &mut PdfContext, invoice: &Invoice) {
         ctx.write_text_at_wrapping(&invoice.buyer.name, 10.0, COL_2, name_row_y, col_width);
     ctx.y = seller_n_y.min(buyer_n_y) - Mm(1.0);
 
-    let mut seller_lines = invoice.seller.address.lines();
-    let mut buyer_lines = invoice.buyer.address.lines();
+    let seller = format!(
+        "{} {} {} {}",
+        invoice.seller.address.street,
+        invoice.seller.address.house_number,
+        invoice.seller.address.code,
+        invoice.seller.address.town
+    );
+
+    let buyer = format!(
+        "{} {} {} {}",
+        invoice.buyer.address.street,
+        invoice.buyer.address.house_number,
+        invoice.buyer.address.code,
+        invoice.buyer.address.town
+    );
+    let mut seller_lines: std::str::Lines<'_> = seller.lines();
+    let mut buyer_lines = buyer.lines();
 
     loop {
         let line_row_y = ctx.y;
