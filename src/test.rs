@@ -1,5 +1,5 @@
 use crate::{
-    invoice::{Buyer, Invoice, Product, Seller},
+    invoice::{Address, Buyer, Invoice, Product, Seller},
     pdf::generate_invoice_pdf,
 };
 use hmac::{Hmac, Mac};
@@ -19,6 +19,20 @@ fn compute_hmac(key: &[u8], data: &[u8]) -> String {
 }
 
 fn make_test_invoice() -> Invoice {
+    let seller_addr = Address {
+        street: "Seller Street".to_string(),
+        house_number: 67,
+        code: 42069,
+        town: "Rizzton".to_string(),
+    };
+
+    let buyer_addr = Address {
+        street: "Buyer Street".to_string(),
+        house_number: 67,
+        code: 69420,
+        town: "Rizzton".to_string(),
+    };
+
     Invoice {
         number: "TEST-001".to_string(),
         date: DateTime {
@@ -31,13 +45,13 @@ fn make_test_invoice() -> Invoice {
         },
         seller: Seller {
             name: "Test Seller".to_string(),
-            address: "123 Test Street".to_string(),
+            address: seller_addr,
             vat_id: "VAT-TEST-123".to_string(),
             website: "test.example.com".to_string(),
         },
         buyer: Buyer {
             name: "Test Buyer".to_string(),
-            address: "456 Buyer Road".to_string(),
+            address: buyer_addr,
             email: "buyer@example.com".to_string(),
         },
         payment_due: DateTime {
