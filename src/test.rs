@@ -1,16 +1,15 @@
+use crate::{
+    invoice::{Buyer, Invoice, Product, Seller},
+    pdf::generate_invoice_pdf,
+};
+use hmac::{Hmac, Mac};
 use locale_rs::{Locale, datetime_formats::DateTime};
+use sha2::Sha256;
 use std::{
     fs,
     io::{self, Write},
 };
 use tempfile::NamedTempFile;
-
-use crate::{
-    generate_invoice_pdf,
-    invoice::{Buyer, Invoice, Product, Seller},
-};
-use hmac::{Hmac, Mac};
-use sha2::Sha256;
 
 fn compute_hmac(key: &[u8], data: &[u8]) -> String {
     let mut mac = Hmac::<Sha256>::new_from_slice(key).unwrap();

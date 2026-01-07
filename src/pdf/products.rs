@@ -1,9 +1,9 @@
-use crate::PdfContext;
-use crate::draw_line;
-use crate::draw_v_line;
 use crate::invoice::*;
 use crate::pdf::PAGE_HEIGHT;
 use crate::pdf::PAGE_WIDTH;
+use crate::pdf::PdfContext;
+use crate::pdf::draw_line;
+use crate::pdf::draw_v_line;
 use locale_rs::Locale;
 use locale_rs::currency_formats::ToCurrencyString;
 use locale_rs::num_formats::ToFormattedString;

@@ -1,9 +1,8 @@
+use crate::pdf::PdfContext;
 use printpdf::*;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-
-use crate::PdfContext;
 
 pub fn draw_logo(
     ctx: &mut PdfContext,

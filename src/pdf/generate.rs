@@ -1,3 +1,4 @@
+use crate::einvoice::{embed_facturx_xml, generate_cii_xml, inject_xmp_metadata};
 use crate::invoice::*;
 use crate::pdf::addresses::draw_address_section;
 use crate::pdf::fin_summary::draw_financial_summary;
@@ -6,6 +7,7 @@ use crate::pdf::logo::draw_logo;
 use crate::pdf::payment_details::draw_payment_details;
 use crate::pdf::product_table::draw_product_table;
 use crate::pdf::*;
+use printpdf::{Mm, PdfDocument, PdfPage, PdfSaveOptions};
 use std::path::Path;
 
 pub fn generate_invoice_pdf<P: AsRef<Path>>(
@@ -26,7 +28,6 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
         LEFT_MARGIN,
         &mut doc,
     )?;
-
     draw_header_info(&mut ctx, invoice);
     draw_address_section(&mut ctx, invoice);
 
@@ -34,9 +35,7 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
     draw_product_table(&mut ctx, invoice, &locale)?;
 
     let summary_top = ctx.y - Mm(8.0);
-
     draw_financial_summary(&mut ctx, &locale, subtotal, &tax_totals, total);
-
     draw_payment_details(&mut ctx, invoice, summary_top);
 
     ctx.pages.push(PdfPage::new(
@@ -44,26 +43,20 @@ pub fn generate_invoice_pdf<P: AsRef<Path>>(
         PAGE_HEIGHT,
         ctx.current_ops.clone(),
     ));
+    let pages = ctx.pages.clone();
 
-    let mut pages = ctx.pages.clone();
-    let total_pages = pages.len();
-
-    for (i, page) in pages.iter_mut().enumerate() {
-        let page_number = i + 1;
-        let pagination_text = format!("{} / {}", page_number, total_pages);
-
-        let x_pos = PAGE_WIDTH - RIGHT_MARGIN - Mm(20.0);
-        let y_pos = BOTTOM_MARGIN;
-        let p_width = Mm(20.0).0;
-
-        ctx.current_ops = Vec::new();
-
-        ctx.write_text_at_wrapping(&pagination_text, 10.0, x_pos, y_pos, p_width);
-
-        page.ops.append(&mut ctx.current_ops);
-    }
-
-    Ok(doc
+    let pdf_bytes = doc
         .with_pages(pages)
-        .save(&PdfSaveOptions::default(), &mut Vec::new()))
+        .save(&PdfSaveOptions::default(), &mut Vec::new());
+
+    let mut lopdf_doc = lopdf::Document::load_mem(&pdf_bytes)?;
+    let xml_content = generate_cii_xml(invoice, subtotal, total);
+    let catalog_id = lopdf_doc.trailer.get(b"Root")?.as_reference()?;
+
+    inject_xmp_metadata(&mut lopdf_doc, catalog_id)?;
+    embed_facturx_xml(&mut lopdf_doc, catalog_id, xml_content)?;
+
+    let mut out_buf = Vec::new();
+    lopdf_doc.save_to(&mut out_buf)?;
+    Ok(out_buf)
 }

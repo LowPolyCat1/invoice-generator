@@ -1,4 +1,5 @@
-use invoice::{Buyer, Invoice, Locale, Product, Seller, generate_invoice_pdf};
+use invoice::pdf::generate_invoice_pdf;
+use invoice::{Locale, invoice::*};
 use locale_rs::datetime_formats::DateTime;
 use std::fs::File;
 use std::io::Write;
@@ -62,7 +63,7 @@ fn main() {
     let pdf_bytes = generate_invoice_pdf(
         &invoice,
         "./fonts/OpenSans-Medium.ttf",
-        Some("./res/logo.jpg"),
+        Some("./res/image.png"),
     )
     .expect("Failed to create PDF");
 
