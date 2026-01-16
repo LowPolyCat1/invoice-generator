@@ -2,6 +2,7 @@ use locale_rs::Locale;
 use locale_rs::datetime_formats::DateTime;
 use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
+use std::fmt;
 
 pub struct Seller {
     pub name: String,
@@ -16,8 +17,6 @@ pub struct Address {
     pub code: u32,
     pub town: String,
 }
-
-use std::fmt;
 
 impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
