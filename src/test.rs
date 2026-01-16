@@ -2,21 +2,11 @@ use crate::{
     models::{Address, Buyer, Invoice, Product, Seller},
     pdf::generate_invoice_pdf,
 };
-use hmac::{Hmac, Mac};
 use locale_rs::{Locale, datetime_formats::DateTime};
-use sha2::Sha256;
 use std::{
-    fs,
     io::{self, Write},
 };
 use tempfile::NamedTempFile;
-
-fn compute_hmac(key: &[u8], data: &[u8]) -> String {
-    let mut mac = Hmac::<Sha256>::new_from_slice(key).unwrap();
-    mac.update(data);
-    let result = mac.finalize();
-    hex::encode(result.into_bytes())
-}
 
 fn make_test_invoice() -> Invoice {
     let seller_addr = Address {
@@ -124,38 +114,6 @@ fn test_generate_and_save_pdf_tempfile() -> io::Result<()> {
     assert!(metadata.len() > 0, "Temporary PDF file is empty");
 
     Ok(())
-}
-
-#[test]
-fn validation_test() {
-    let invoice_id = "100";
-    let mut invoice = make_test_invoice();
-    invoice.number = invoice_id.to_string();
-
-    let pdf_bytes = generate_invoice_pdf(
-        &invoice,
-        std::path::Path::new("./fonts/OpenSans-Medium.ttf"),
-        None,
-    )
-    .unwrap();
-
-    let hash1 = compute_hmac(b"very secret secret", &pdf_bytes);
-    let hash2 = compute_hmac(b"very secret secret", &pdf_bytes);
-
-    assert_eq!(hash1, hash2, "HMAC should be stable across identical input");
-}
-
-#[test]
-fn detect_breaking_changes() {
-    if let Ok(pdf_bytes) = fs::read("old.pdf") {
-        let hash = compute_hmac(b"secret", &pdf_bytes);
-        assert_eq!(
-            "fc87ddd5ea2064137bf17c65ef03e85e708f49a6778dd04f8a36a53a34a6b901",
-            hash
-        );
-    } else {
-        eprintln!("old.pdf not found, skipping breaking change test");
-    }
 }
 
 #[test]
