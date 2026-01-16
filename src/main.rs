@@ -74,6 +74,15 @@ fn main() {
         locale: Locale::de,
     };
 
+    let xml_output = invoice.to_xml().expect("Failed to generate XML");
+
+    let mut xml_file = File::create("./invoice.xml").expect("Unable to create XML file");
+    xml_file
+        .write_all(xml_output.as_bytes())
+        .expect("Failed to write XML");
+
+    println!("Invoice XML saved to 'invoice.xml'");
+
     let pdf_bytes = generate_invoice_pdf(
         &invoice,
         "./fonts/OpenSans-Medium.ttf",
