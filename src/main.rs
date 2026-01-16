@@ -86,7 +86,7 @@ fn main() {
     let pdf_bytes = generate_invoice_pdf(
         &invoice,
         "./fonts/OpenSans-Medium.ttf",
-        Some("./res/image.png"),
+        Some("./res/logo.jpg"),
     )
     .expect("Failed to create PDF");
 
