@@ -1,8 +1,8 @@
 use crate::pdf::context::PdfContext;
 use crate::pdf::drawing::{draw_line, draw_v_line};
 use crate::pdf::{BOTTOM_MARGIN, COL_2, PAGE_HEIGHT, PAGE_WIDTH};
-use locale_rs::currency_formats::ToCurrencyString;
 use locale_rs::Locale;
+use locale_rs::currency_formats::ToCurrencyString;
 use ordered_float::OrderedFloat;
 use printpdf::{Mm, PdfPage};
 use std::collections::BTreeMap;

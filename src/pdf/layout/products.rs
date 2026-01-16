@@ -1,10 +1,10 @@
 use crate::invoice::Invoice;
 use crate::pdf::context::PdfContext;
 use crate::pdf::drawing::{draw_line, draw_v_line};
-use crate::pdf::{PAGE_HEIGHT, PAGE_WIDTH, COL_1};
+use crate::pdf::{COL_1, PAGE_HEIGHT, PAGE_WIDTH};
+use locale_rs::Locale;
 use locale_rs::currency_formats::ToCurrencyString;
 use locale_rs::num_formats::ToFormattedString;
-use locale_rs::Locale;
 use printpdf::{Mm, PdfPage};
 
 pub fn draw_product_table(

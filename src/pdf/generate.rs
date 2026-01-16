@@ -5,7 +5,7 @@ use crate::pdf::layout::{
     draw_product_table,
 };
 use crate::pdf::{LEFT_MARGIN, PAGE_HEIGHT, PAGE_WIDTH};
-use printpdf::{Mm, PdfDocument, PdfPage, PdfSaveOptions, ParsedFont};
+use printpdf::{Mm, ParsedFont, PdfDocument, PdfPage, PdfSaveOptions};
 use std::path::Path;
 
 pub fn generate_invoice_pdf<P: AsRef<Path>>(

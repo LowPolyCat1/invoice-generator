@@ -1,6 +1,6 @@
-use ::invoice::pdf::generate_invoice_pdf;
-use ::invoice::models::*;
 use ::invoice::Locale;
+use ::invoice::models::*;
+use ::invoice::pdf::generate_invoice_pdf;
 use locale_rs::datetime_formats::DateTime;
 use std::fs::File;
 use std::io::Write;
@@ -35,20 +35,25 @@ fn main() {
             email: "john.doe@example.com".to_string(),
         },
         payment_due: DateTime { year: 2025, month: 8, day: 15, hour: 0, minute: 0, second: 0 },
-        delivery_date: DateTime { year: 2025, month: 7, day: 14, hour: 0, minute: 0, second: 0 },
-        delivery_type: Some("Standard Shipping".to_string()),
-        extra_info: vec![
-            ("Order Reference".to_string(), "987654321".to_string()),
-            ("Project".to_string(), "Example Project".to_string()),
-        ],
-        payment_type: Some("Bank Transfer".to_string()),
-        payment_info: vec![
-            (
-                "IBAN".to_string(),
-                "DE00 5001 0517 5407 3249 31".to_string(),
-            ),
-            ("BIC".to_string(), "INGDDEFFXXX".to_string()),
-        ],
+        delivery_date: None,
+        // Some(DateTime { year: 2025, month: 7, day: 14, hour: 0, minute: 0, second: 0 }),
+        delivery_type: None,
+        // Some("Standard Shipping".to_string()),
+        extra_info: None,
+        // Some(vec![
+        //     ("Order Reference".to_string(), "987654321".to_string()),
+        //     ("Project".to_string(), "Example Project".to_string()),
+        // ]),
+        payment_type: None,
+        //  Some("Bank Transfer".to_string()),
+        payment_info: None,
+        // Some(vec![
+        //     (
+        //         "IBAN".to_string(),
+        //         "DE00 5001 0517 5407 3249 31".to_string(),
+        //     ),
+        //     ("BIC".to_string(), "INGDDEFFXXX".to_string()),
+        // ]),
         products: vec![
             Product {
                 description: "Rusty Widget with very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long description".to_string(),

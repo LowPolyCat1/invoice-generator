@@ -39,64 +39,60 @@ pub fn draw_header_info(ctx: &mut PdfContext, invoice: &Invoice) {
 
     let row_2_y = ctx.y;
 
+    if let Some(extra_info_iter) = invoice.extra_info.iter().next() {}
+
     let mut extra_info_iter = invoice.extra_info.iter();
 
-    if let Some((label, value)) = extra_info_iter.next() {
-        let left_y = ctx.write_text_at_wrapping(
-            &format!("{}: {}", label, value),
-            10.0,
-            COL_1,
-            row_2_y,
-            col_width,
-        );
-        let right_y = ctx.write_text_at_wrapping(
-            &format!(
-                "Delivery Date: {}",
-                &invoice.locale.format_date(&invoice.delivery_date)
-            ),
+    // 1. Collect all "extra" fields into a single vector of (Label, Value)
+let mut metadata = Vec::new();
+
+if let Some(ref d_date) = invoice.delivery_date {
+    metadata.push(("Delivery Date".to_string(), invoice.locale.format_date(d_date)));
+}
+
+if let Some(ref d_type) = invoice.delivery_type {
+    metadata.push(("Delivery Type".to_string(), d_type.clone()));
+}
+
+if let Some(ref payment) = invoice.payment_type {
+    metadata.push(("Payment Type".to_string(), payment.clone()));
+}
+
+// Add the extra_info pairs if they exist
+if let Some(ref extra) = invoice.extra_info {
+    metadata.extend(extra.iter().cloned());
+}
+
+// 2. Iterate through the collected metadata two-by-two
+let mut metadata_iter = metadata.into_iter();
+
+while let Some((label1, value1)) = metadata_iter.next() {
+    let current_row_y = ctx.y;
+
+    // Left Column
+    let left_y = ctx.write_text_at_wrapping(
+        &format!("{}: {}", label1, value1),
+        10.0,
+        COL_1,
+        current_row_y,
+        col_width,
+    );
+
+    // Right Column (if there's another item)
+    let mut right_y = left_y;
+    if let Some((label2, value2)) = metadata_iter.next() {
+        right_y = ctx.write_text_at_wrapping(
+            &format!("{}: {}", label2, value2),
             10.0,
             COL_2,
-            row_2_y,
-            col_width,
-        );
-        ctx.y = left_y.min(right_y) - Mm(1.);
-    } else {
-        ctx.y = ctx.write_text_at_wrapping(
-            &format!(
-                "Delivery Date: {}",
-                &invoice.locale.format_date(&invoice.delivery_date)
-            ),
-            10.0,
-            COL_2,
-            row_2_y,
-            col_width,
-        );
-    }
-
-    while let Some((l1, v1)) = extra_info_iter.next() {
-        let current_row_y = ctx.y;
-
-        let left_y = ctx.write_text_at_wrapping(
-            &format!("{}: {}", l1, v1),
-            10.0,
-            COL_1,
             current_row_y,
             col_width,
         );
-
-        let mut right_y = left_y;
-        if let Some((l2, v2)) = extra_info_iter.next() {
-            right_y = ctx.write_text_at_wrapping(
-                &format!("{}: {}", l2, v2),
-                10.0,
-                COL_2,
-                current_row_y,
-                col_width,
-            );
-        }
-
-        ctx.y = left_y.min(right_y) - Mm(1.0);
     }
+
+    // Update Y position to the lowest point of the current row
+    ctx.y = left_y.min(right_y) - Mm(1.0);
+}
 
     draw_line(&mut ctx.current_ops, COL_1, Mm(190.0), ctx.y);
 }

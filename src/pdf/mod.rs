@@ -2,8 +2,8 @@ use printpdf::*;
 
 pub mod context;
 pub mod drawing;
-pub mod layout;
 pub mod generate;
+pub mod layout;
 
 pub use context::PdfContext;
 pub use drawing::{draw_line, draw_v_line};

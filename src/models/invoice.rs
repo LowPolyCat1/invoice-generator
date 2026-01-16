@@ -1,6 +1,6 @@
 use super::{Buyer, Product, Seller};
-use locale_rs::datetime_formats::DateTime;
 use locale_rs::Locale;
+use locale_rs::datetime_formats::DateTime;
 use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
 
@@ -10,11 +10,11 @@ pub struct Invoice {
     pub seller: Seller,
     pub buyer: Buyer,
     pub payment_due: DateTime,
-    pub delivery_date: DateTime,
+    pub delivery_date: Option<DateTime>,
     pub delivery_type: Option<String>,
-    pub extra_info: Vec<(String, String)>,
+    pub extra_info: Option<Vec<(String, String)>>,
     pub payment_type: Option<String>,
-    pub payment_info: Vec<(String, String)>,
+    pub payment_info: Option<Vec<(String, String)>>,
     pub products: Vec<Product>,
     pub locale: Locale,
 }

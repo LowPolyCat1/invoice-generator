@@ -20,23 +20,25 @@ pub fn draw_payment_details(ctx: &mut PdfContext, invoice: &Invoice, target_y: M
         ) - Mm(1.);
     }
 
-    for (label, value) in &invoice.payment_info {
-        if ctx.y < Mm(20.0) {
-            ctx.pages.push(PdfPage::new(
-                PAGE_WIDTH,
-                PAGE_HEIGHT,
-                ctx.current_ops.drain(..).collect(),
-            ));
-            ctx.y = Mm(280.0);
-        }
+    if let Some(payment_info) = &invoice.payment_info {
+        for (label, value) in payment_info {
+            if ctx.y < Mm(20.0) {
+                ctx.pages.push(PdfPage::new(
+                    PAGE_WIDTH,
+                    PAGE_HEIGHT,
+                    ctx.current_ops.drain(..).collect(),
+                ));
+                ctx.y = Mm(280.0);
+            }
 
-        ctx.y = ctx.write_text_at_wrapping(
-            &format!("{}: {}", label, value),
-            9.0,
-            cols[0],
-            ctx.y,
-            label_w,
-        ) - Mm(1.);
+            ctx.y = ctx.write_text_at_wrapping(
+                &format!("{}: {}", label, value),
+                9.0,
+                cols[0],
+                ctx.y,
+                label_w,
+            ) - Mm(1.);
+        }
     }
 }
 

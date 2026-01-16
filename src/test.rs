@@ -3,9 +3,7 @@ use crate::{
     pdf::generate_invoice_pdf,
 };
 use locale_rs::{Locale, datetime_formats::DateTime};
-use std::{
-    io::{self, Write},
-};
+use std::io::{self, Write};
 use tempfile::NamedTempFile;
 
 fn make_test_invoice() -> Invoice {
@@ -52,18 +50,18 @@ fn make_test_invoice() -> Invoice {
             minute: 0,
             second: 0,
         },
-        delivery_date: DateTime {
+        delivery_date: Some(DateTime {
             year: 2025,
             month: 7,
             day: 15,
             hour: 0,
             minute: 0,
             second: 0,
-        },
+        }),
         delivery_type: None,
-        extra_info: vec![],
+        extra_info: Some(vec![]),
         payment_type: None,
-        payment_info: vec![],
+        payment_info: Some(vec![]),
         products: vec![
             Product {
                 description: "Widget".to_string(),
@@ -147,20 +145,20 @@ fn test_xml_against_itb_api() {
             email: "john.doe@example.com".to_string(),
         },
         payment_due: DateTime { year: 2025, month: 8, day: 15, hour: 0, minute: 0, second: 0 },
-        delivery_date: DateTime { year: 2025, month: 7, day: 14, hour: 0, minute: 0, second: 0 },
+        delivery_date: Some(DateTime { year: 2025, month: 7, day: 14, hour: 0, minute: 0, second: 0 }),
         delivery_type: Some("Standard Shipping".to_string()),
-        extra_info: vec![
+        extra_info: Some(vec![
             ("Order Reference".to_string(), "987654321".to_string()),
             ("Project".to_string(), "Example Project".to_string()),
-        ],
+        ]),
         payment_type: Some("Bank Transfer".to_string()),
-        payment_info: vec![
+        payment_info: Some(vec![
             (
                 "IBAN".to_string(),
                 "DE00 5001 0517 5407 3249 31".to_string(),
             ),
             ("BIC".to_string(), "INGDDEFFXXX".to_string()),
-        ],
+        ]),
         products: vec![
             Product {
                 description: "Rusty Widget with very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long description".to_string(),
