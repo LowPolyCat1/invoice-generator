@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test;
 
+pub mod einvoice;
 pub mod invoice;
 pub mod pdf;
 pub mod validation;
