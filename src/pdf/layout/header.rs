@@ -1,5 +1,9 @@
-use crate::invoice::*;
-use crate::pdf::*;
+use crate::invoice::Invoice;
+use crate::pdf::context::PdfContext;
+use crate::pdf::drawing::draw_line;
+use crate::pdf::{COL_1, COL_2};
+use printpdf::Mm;
+
 pub fn draw_header_info(ctx: &mut PdfContext, invoice: &Invoice) {
     let col_width = (COL_2.0 - COL_1.0) - 5.0;
 

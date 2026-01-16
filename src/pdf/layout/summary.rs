@@ -1,13 +1,17 @@
-use locale_rs::Locale;
+use crate::pdf::context::PdfContext;
+use crate::pdf::drawing::{draw_line, draw_v_line};
+use crate::pdf::{BOTTOM_MARGIN, COL_2, PAGE_HEIGHT, PAGE_WIDTH};
 use locale_rs::currency_formats::ToCurrencyString;
-
-use crate::pdf::*;
+use locale_rs::Locale;
+use ordered_float::OrderedFloat;
+use printpdf::{Mm, PdfPage};
+use std::collections::BTreeMap;
 
 pub fn draw_financial_summary(
     ctx: &mut PdfContext,
     locale: &Locale,
     subtotal: f64,
-    tax_map: &std::collections::BTreeMap<ordered_float::OrderedFloat<f64>, f64>,
+    tax_map: &BTreeMap<OrderedFloat<f64>, f64>,
     total: f64,
 ) {
     let right_edge = Mm(190.0);

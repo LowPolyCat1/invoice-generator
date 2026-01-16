@@ -1,9 +1,11 @@
 #[cfg(test)]
 mod test;
 
-pub mod einvoice;
+pub mod models;
 pub mod invoice;
+pub mod einvoice;
 pub mod pdf;
 pub mod validation;
 
 pub use locale_rs::Locale;
+pub use models::{Address, Buyer, Invoice, Product, Seller};

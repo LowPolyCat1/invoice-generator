@@ -1,4 +1,4 @@
-use crate::invoice::*;
+use crate::models::{Address, Invoice};
 use locale_rs::datetime_formats::DateTime;
 use quick_xml::Writer;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};

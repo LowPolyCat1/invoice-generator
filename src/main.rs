@@ -1,5 +1,6 @@
-use invoice::pdf::generate_invoice_pdf;
-use invoice::{Locale, invoice::*};
+use ::invoice::pdf::generate_invoice_pdf;
+use ::invoice::models::*;
+use ::invoice::Locale;
 use locale_rs::datetime_formats::DateTime;
 use std::fs::File;
 use std::io::Write;

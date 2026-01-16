@@ -1,5 +1,7 @@
-use crate::invoice::*;
-use crate::pdf::*;
+use crate::invoice::Invoice;
+use crate::pdf::context::PdfContext;
+use crate::pdf::{COL_1, COL_2};
+use printpdf::Mm;
 
 pub fn draw_address_section(ctx: &mut PdfContext, invoice: &Invoice) {
     ctx.y -= Mm(8.0);

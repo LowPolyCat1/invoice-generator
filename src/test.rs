@@ -1,5 +1,5 @@
 use crate::{
-    invoice::{Address, Buyer, Invoice, Product, Seller},
+    models::{Address, Buyer, Invoice, Product, Seller},
     pdf::generate_invoice_pdf,
 };
 use hmac::{Hmac, Mac};
