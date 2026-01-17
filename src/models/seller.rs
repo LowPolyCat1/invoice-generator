@@ -5,4 +5,6 @@ pub struct Seller {
     pub address: Address,
     pub vat_id: String,
     pub website: String,
+    pub phone: Option<String>,
+    pub email: Option<String>,
 }

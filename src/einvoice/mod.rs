@@ -44,10 +44,48 @@ impl Invoice {
         write_element(&mut writer, "cbc:DueDate", &to_ubl_date(&self.payment_due))?;
         write_element(&mut writer, "cbc:InvoiceTypeCode", "380")?;
         write_element(&mut writer, "cbc:DocumentCurrencyCode", "EUR")?;
+        write_element(&mut writer, "cbc:BuyerReference", "Reference")?;
 
         self.write_supplier_party(&mut writer)?;
 
         self.write_customer_party(&mut writer)?;
+
+        if let Some(delivery_date) = &self.delivery_date {
+            writer.write_event(Event::Start(BytesStart::new("cac:Delivery")))?;
+            write_element(&mut writer, "cbc:ActualDeliveryDate", &to_ubl_date(delivery_date))?;
+            writer.write_event(Event::End(BytesEnd::new("cac:Delivery")))?;
+        }
+
+        writer.write_event(Event::Start(BytesStart::new("cac:PaymentMeans")))?;
+        write_element(&mut writer, "cbc:PaymentMeansCode", "30")?; // 30 = Bank transfer (SEPA)
+
+        if let Some(payment_info) = &self.payment_info {
+            if !payment_info.is_empty() {
+                let mut iban = String::new();
+                let mut bic = String::new();
+
+                for (key, value) in payment_info {
+                    if key.to_uppercase() == "IBAN" {
+                        iban = value.clone();
+                    } else if key.to_uppercase() == "BIC" {
+                        bic = value.clone();
+                    }
+                }
+
+                if !iban.is_empty() {
+                    writer.write_event(Event::Start(BytesStart::new("cac:PayeeFinancialAccount")))?;
+                    write_element(&mut writer, "cbc:ID", &iban)?;
+                    if !bic.is_empty() {
+                        writer.write_event(Event::Start(BytesStart::new("cac:FinancialInstitutionBranch")))?;
+                        write_element(&mut writer, "cbc:ID", &bic)?;
+                        writer.write_event(Event::End(BytesEnd::new("cac:FinancialInstitutionBranch")))?;
+                    }
+                    writer.write_event(Event::End(BytesEnd::new("cac:PayeeFinancialAccount")))?;
+                }
+            }
+        }
+
+        writer.write_event(Event::End(BytesEnd::new("cac:PaymentMeans")))?;
 
         let mut sum_line_net = 0.0;
         let mut total_vat = 0.0;
@@ -194,6 +232,16 @@ impl Invoice {
         write_element(writer, "cbc:RegistrationName", &self.seller.name)?;
         writer.write_event(Event::End(BytesEnd::new("cac:PartyLegalEntity")))?;
 
+        writer.write_event(Event::Start(BytesStart::new("cac:Contact")))?;
+        write_element(writer, "cbc:Name", &self.seller.name)?;
+        if let Some(phone) = &self.seller.phone {
+            write_element(writer, "cbc:Telephone", phone)?;
+        }
+        if let Some(email) = &self.seller.email {
+            write_element(writer, "cbc:ElectronicMail", email)?;
+        }
+        writer.write_event(Event::End(BytesEnd::new("cac:Contact")))?;
+
         writer.write_event(Event::End(BytesEnd::new("cac:Party")))?;
         writer.write_event(Event::End(BytesEnd::new("cac:AccountingSupplierParty")))?;
         Ok(())
@@ -208,10 +256,20 @@ impl Invoice {
         writer.write_event(Event::Start(BytesStart::new("cac:PartyName")))?;
         write_element(writer, "cbc:Name", &self.buyer.name)?;
         writer.write_event(Event::End(BytesEnd::new("cac:PartyName")))?;
+
         write_address_block(writer, &self.buyer.address)?;
+
         writer.write_event(Event::Start(BytesStart::new("cac:PartyLegalEntity")))?;
         write_element(writer, "cbc:RegistrationName", &self.buyer.name)?;
         writer.write_event(Event::End(BytesEnd::new("cac:PartyLegalEntity")))?;
+
+        writer.write_event(Event::Start(BytesStart::new("cac:Contact")))?;
+        write_element(writer, "cbc:Name", &self.buyer.name)?;
+        if !self.buyer.email.is_empty() {
+            write_element(writer, "cbc:ElectronicMail", &self.buyer.email)?;
+        }
+        writer.write_event(Event::End(BytesEnd::new("cac:Contact")))?;
+
         writer.write_event(Event::End(BytesEnd::new("cac:Party")))?;
         writer.write_event(Event::End(BytesEnd::new("cac:AccountingCustomerParty")))?;
         Ok(())

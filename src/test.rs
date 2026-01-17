@@ -36,6 +36,8 @@ fn make_test_invoice() -> Invoice {
             address: seller_addr,
             vat_id: "VAT-TEST-123".to_string(),
             website: "test.example.com".to_string(),
+            phone: Some("+49 123 456789".to_string()),
+            email: Some("contact@test.example.com".to_string()),
         },
         buyer: Buyer {
             name: "Test Buyer".to_string(),
@@ -138,6 +140,8 @@ fn test_xml_against_itb_api() {
             address: seller_addr,
             vat_id: "VAT-EX-00000000".to_string(),
             website: "examplecorp.com".to_string(),
+            phone: Some("+49 123 456789".to_string()),
+            email: Some("contact@examplecorp.com".to_string()),
         },
         buyer: Buyer {
             name: "John Doe".to_string(),
