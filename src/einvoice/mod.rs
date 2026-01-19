@@ -52,15 +52,19 @@ impl Invoice {
 
         if let Some(delivery_date) = &self.delivery_date {
             writer.write_event(Event::Start(BytesStart::new("cac:Delivery")))?;
-            write_element(&mut writer, "cbc:ActualDeliveryDate", &to_ubl_date(delivery_date))?;
+            write_element(
+                &mut writer,
+                "cbc:ActualDeliveryDate",
+                &to_ubl_date(delivery_date),
+            )?;
             writer.write_event(Event::End(BytesEnd::new("cac:Delivery")))?;
         }
 
         writer.write_event(Event::Start(BytesStart::new("cac:PaymentMeans")))?;
         write_element(&mut writer, "cbc:PaymentMeansCode", "30")?; // 30 = Bank transfer (SEPA)
 
-        if let Some(payment_info) = &self.payment_info {
-            if !payment_info.is_empty() {
+        if let Some(payment_info) = &self.payment_info
+            && !payment_info.is_empty() {
                 let mut iban = String::new();
                 let mut bic = String::new();
 
@@ -73,17 +77,21 @@ impl Invoice {
                 }
 
                 if !iban.is_empty() {
-                    writer.write_event(Event::Start(BytesStart::new("cac:PayeeFinancialAccount")))?;
+                    writer
+                        .write_event(Event::Start(BytesStart::new("cac:PayeeFinancialAccount")))?;
                     write_element(&mut writer, "cbc:ID", &iban)?;
                     if !bic.is_empty() {
-                        writer.write_event(Event::Start(BytesStart::new("cac:FinancialInstitutionBranch")))?;
+                        writer.write_event(Event::Start(BytesStart::new(
+                            "cac:FinancialInstitutionBranch",
+                        )))?;
                         write_element(&mut writer, "cbc:ID", &bic)?;
-                        writer.write_event(Event::End(BytesEnd::new("cac:FinancialInstitutionBranch")))?;
+                        writer.write_event(Event::End(BytesEnd::new(
+                            "cac:FinancialInstitutionBranch",
+                        )))?;
                     }
                     writer.write_event(Event::End(BytesEnd::new("cac:PayeeFinancialAccount")))?;
                 }
             }
-        }
 
         writer.write_event(Event::End(BytesEnd::new("cac:PaymentMeans")))?;
 

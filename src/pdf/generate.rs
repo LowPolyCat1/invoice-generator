@@ -1,102 +1,429 @@
 use crate::invoice::Invoice;
-use crate::pdf::context::PdfContext;
-use crate::pdf::layout::{
-    draw_address_section, draw_financial_summary, draw_header_info, draw_payment_details,
-    draw_product_table,
-};
-use crate::pdf::{LEFT_MARGIN, PAGE_HEIGHT, PAGE_WIDTH};
-use printpdf::{Mm, ParsedFont, PdfDocument, PdfPage, PdfSaveOptions};
+use krilla::Document;
+use krilla::color::rgb;
+use krilla::geom::Point;
+use krilla::paint::Stroke;
+use krilla::text::Font;
+use krilla::text::TextDirection;
 use std::path::Path;
 
 pub fn generate_invoice_pdf<P: AsRef<Path>>(
     invoice: &Invoice,
     font_path: P,
-    logo_path: Option<P>,
+    _logo_path: Option<P>,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let mut doc = PdfDocument::new("Invoice");
-    let font_bytes = std::fs::read(font_path)?;
-    let font_id =
-        doc.add_font(&ParsedFont::from_bytes(&font_bytes, 0, &mut Vec::new()).ok_or("Font Error")?);
-    let mut ctx = PdfContext::new(font_id);
-    let locale = &invoice.locale;
+    let mut doc = Document::new();
 
-    draw_logo(
-        &mut ctx,
-        logo_path.as_ref().map(|p| p.as_ref()),
-        LEFT_MARGIN,
-        &mut doc,
-    )?;
-    draw_header_info(&mut ctx, invoice);
-    draw_address_section(&mut ctx, invoice);
+    let font_bytes = std::fs::read(font_path)?;
+    let font = Font::new(krilla::Data::from(font_bytes), 0).ok_or("Failed to load font")?;
+
+    let mut page = doc.start_page();
+    let mut surface = page.surface();
+
+    // Page dimensions (A4 in points: 595x842)
+    let margin_left = 40.0;
+    let margin_top = 40.0;
+    let margin_right = 40.0;
+    let page_width = 595.0;
+    let _page_height = 842.0;
+
+    let mut y = margin_top;
+
+    // Title
+    surface.draw_text(
+        Point::from_xy(margin_left, y),
+        font.clone(),
+        28.0,
+        "INVOICE",
+        false,
+        TextDirection::Auto,
+    );
+
+    y += 40.0;
+
+    // Invoice details (right aligned)
+    let details_x = page_width - margin_right - 150.0;
+    surface.draw_text(
+        Point::from_xy(details_x, y),
+        font.clone(),
+        10.0,
+        &format!("Invoice #: {}", invoice.number),
+        false,
+        TextDirection::Auto,
+    );
+
+    y += 15.0;
+    surface.draw_text(
+        Point::from_xy(details_x, y),
+        font.clone(),
+        10.0,
+        &format!("Date: {}", invoice.locale.format_date(&invoice.date)),
+        false,
+        TextDirection::Auto,
+    );
+
+    y += 15.0;
+    surface.draw_text(
+        Point::from_xy(details_x, y),
+        font.clone(),
+        10.0,
+        &format!("Due: {}", invoice.locale.format_date(&invoice.payment_due)),
+        false,
+        TextDirection::Auto,
+    );
+
+    y += 40.0;
+
+    // Seller and Buyer sections
+    let col1_x = margin_left;
+    let col2_x = margin_left + 280.0;
+
+    // FROM section
+    surface.draw_text(
+        Point::from_xy(col1_x, y),
+        font.clone(),
+        11.0,
+        "FROM:",
+        false,
+        TextDirection::Auto,
+    );
+
+    y += 18.0;
+    surface.draw_text(
+        Point::from_xy(col1_x, y),
+        font.clone(),
+        10.0,
+        &invoice.seller.name,
+        false,
+        TextDirection::Auto,
+    );
+
+    y += 14.0;
+    surface.draw_text(
+        Point::from_xy(col1_x, y),
+        font.clone(),
+        9.0,
+        &format!(
+            "{} {}",
+            invoice.seller.address.street, invoice.seller.address.house_number
+        ),
+        false,
+        TextDirection::Auto,
+    );
+
+    y += 12.0;
+    surface.draw_text(
+        Point::from_xy(col1_x, y),
+        font.clone(),
+        9.0,
+        &format!(
+            "{} {}",
+            invoice.seller.address.code, invoice.seller.address.town
+        ),
+        false,
+        TextDirection::Auto,
+    );
+
+    y += 12.0;
+    surface.draw_text(
+        Point::from_xy(col1_x, y),
+        font.clone(),
+        9.0,
+        &format!("VAT: {}", invoice.seller.vat_id),
+        false,
+        TextDirection::Auto,
+    );
+
+    // BILL TO section (at same height as FROM)
+    let mut y_bill_to = margin_top + 40.0;
+
+    surface.draw_text(
+        Point::from_xy(col2_x, y_bill_to),
+        font.clone(),
+        11.0,
+        "BILL TO:",
+        false,
+        TextDirection::Auto,
+    );
+
+    y_bill_to += 18.0;
+    surface.draw_text(
+        Point::from_xy(col2_x, y_bill_to),
+        font.clone(),
+        10.0,
+        &invoice.buyer.name,
+        false,
+        TextDirection::Auto,
+    );
+
+    y_bill_to += 14.0;
+    surface.draw_text(
+        Point::from_xy(col2_x, y_bill_to),
+        font.clone(),
+        9.0,
+        &format!(
+            "{} {}",
+            invoice.buyer.address.street, invoice.buyer.address.house_number
+        ),
+        false,
+        TextDirection::Auto,
+    );
+
+    y_bill_to += 12.0;
+    surface.draw_text(
+        Point::from_xy(col2_x, y_bill_to),
+        font.clone(),
+        9.0,
+        &format!(
+            "{} {}",
+            invoice.buyer.address.code, invoice.buyer.address.town
+        ),
+        false,
+        TextDirection::Auto,
+    );
+
+    y_bill_to += 12.0;
+    surface.draw_text(
+        Point::from_xy(col2_x, y_bill_to),
+        font.clone(),
+        9.0,
+        &invoice.buyer.email,
+        false,
+        TextDirection::Auto,
+    );
+
+    // Move to next section
+    y = y.max(y_bill_to) + 30.0;
+
+    // Horizontal line
+    draw_line(&mut surface, margin_left, page_width - margin_right, y)?;
+
+    y += 20.0;
+
+    // Table headers
+    let col_desc = margin_left;
+    let col_qty = margin_left + 320.0;
+    let col_price = margin_left + 380.0;
+    let col_total = margin_left + 450.0;
+
+    surface.draw_text(
+        Point::from_xy(col_desc, y),
+        font.clone(),
+        10.0,
+        "Description",
+        false,
+        TextDirection::Auto,
+    );
+
+    surface.draw_text(
+        Point::from_xy(col_qty, y),
+        font.clone(),
+        10.0,
+        "Qty",
+        false,
+        TextDirection::Auto,
+    );
+
+    surface.draw_text(
+        Point::from_xy(col_price, y),
+        font.clone(),
+        10.0,
+        "Unit Price",
+        false,
+        TextDirection::Auto,
+    );
+
+    surface.draw_text(
+        Point::from_xy(col_total, y),
+        font.clone(),
+        10.0,
+        "Total",
+        false,
+        TextDirection::Auto,
+    );
+
+    y += 12.0;
+    draw_line(&mut surface, margin_left, page_width - margin_right, y)?;
+
+    y += 15.0;
+
+    // Products
+    for product in &invoice.products {
+        let line_total = product.units as f64 * product.cost_per_unit;
+
+        // Truncate long descriptions
+        let desc = if product.description.len() > 45 {
+            format!("{}...", &product.description[..42])
+        } else {
+            product.description.clone()
+        };
+
+        surface.draw_text(
+            Point::from_xy(col_desc, y),
+            font.clone(),
+            9.0,
+            &desc,
+            false,
+            TextDirection::Auto,
+        );
+
+        surface.draw_text(
+            Point::from_xy(col_qty, y),
+            font.clone(),
+            9.0,
+            &product.units.to_string(),
+            false,
+            TextDirection::Auto,
+        );
+
+        surface.draw_text(
+            Point::from_xy(col_price, y),
+            font.clone(),
+            9.0,
+            &format!("${:.2}", product.cost_per_unit),
+            false,
+            TextDirection::Auto,
+        );
+
+        surface.draw_text(
+            Point::from_xy(col_total, y),
+            font.clone(),
+            9.0,
+            &format!("${:.2}", line_total),
+            false,
+            TextDirection::Auto,
+        );
+
+        y += 14.0;
+    }
+
+    y += 5.0;
+    draw_line(&mut surface, margin_left, page_width - margin_right, y)?;
+
+    // Totals section
+    y += 20.0;
+    let totals_label_x = col_price - 60.0;
+    let totals_value_x = col_total;
 
     let (subtotal, tax_totals, total) = invoice.calculate_summary();
-    draw_product_table(&mut ctx, invoice, &locale)?;
 
-    let summary_top = ctx.y - Mm(8.0);
-    draw_financial_summary(&mut ctx, &locale, subtotal, &tax_totals, total);
-    draw_payment_details(&mut ctx, invoice, summary_top);
+    surface.draw_text(
+        Point::from_xy(totals_label_x, y),
+        font.clone(),
+        10.0,
+        "Subtotal:",
+        false,
+        TextDirection::Auto,
+    );
 
-    ctx.pages.push(PdfPage::new(
-        PAGE_WIDTH,
-        PAGE_HEIGHT,
-        ctx.current_ops.clone(),
-    ));
-    let pages = ctx.pages.clone();
+    surface.draw_text(
+        Point::from_xy(totals_value_x, y),
+        font.clone(),
+        10.0,
+        &format!("${:.2}", subtotal),
+        false,
+        TextDirection::Auto,
+    );
 
-    let pdf_bytes = doc
-        .with_pages(pages)
-        .save(&PdfSaveOptions::default(), &mut Vec::new());
+    y += 14.0;
 
+    // Tax breakdown
+    for (rate, amount) in tax_totals {
+        surface.draw_text(
+            Point::from_xy(totals_label_x, y),
+            font.clone(),
+            10.0,
+            &format!("Tax ({:.0}%):", rate.0 * 100.0),
+            false,
+            TextDirection::Auto,
+        );
+
+        surface.draw_text(
+            Point::from_xy(totals_value_x, y),
+            font.clone(),
+            10.0,
+            &format!("${:.2}", amount),
+            false,
+            TextDirection::Auto,
+        );
+
+        y += 14.0;
+    }
+
+    y += 5.0;
+    draw_line(&mut surface, totals_label_x, page_width - margin_right, y)?;
+
+    y += 15.0;
+
+    // Total
+    surface.draw_text(
+        Point::from_xy(totals_label_x, y),
+        font.clone(),
+        12.0,
+        "TOTAL:",
+        false,
+        TextDirection::Auto,
+    );
+
+    surface.draw_text(
+        Point::from_xy(totals_value_x, y),
+        font.clone(),
+        12.0,
+        &format!("${:.2}", total),
+        false,
+        TextDirection::Auto,
+    );
+
+    // Payment info
+    y += 40.0;
+    if let Some(payment_info) = &invoice.payment_info {
+        surface.draw_text(
+            Point::from_xy(margin_left, y),
+            font.clone(),
+            10.0,
+            "Payment Information:",
+            false,
+            TextDirection::Auto,
+        );
+
+        y += 14.0;
+        for (key, value) in payment_info {
+            surface.draw_text(
+                Point::from_xy(margin_left, y),
+                font.clone(),
+                9.0,
+                &format!("{}: {}", key, value),
+                false,
+                TextDirection::Auto,
+            );
+            y += 12.0;
+        }
+    }
+
+    surface.finish();
+    page.finish();
+
+    let pdf_bytes = doc.finish().map_err(|e| format!("{:?}", e))?;
     Ok(pdf_bytes)
 }
 
-fn draw_logo(
-    ctx: &mut PdfContext,
-    logo_path: Option<&Path>,
-    left_margin: f32,
-    doc: &mut PdfDocument,
+fn draw_line(
+    surface: &mut krilla::surface::Surface,
+    x1: f32,
+    x2: f32,
+    y: f32,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use printpdf::*;
-    use std::fs::File;
-    use std::io::Read;
+    let mut pb = krilla::geom::PathBuilder::new();
+    pb.move_to(x1, y);
+    pb.line_to(x2, y);
+    let path = pb.finish().ok_or("Failed to create line")?;
 
-    if let Some(path) = logo_path {
-        let mut buf = Vec::new();
-        File::open(path)?.read_to_end(&mut buf)?;
-        let image =
-            RawImage::decode_from_bytes(&buf, &mut Vec::new()).map_err(|e| e.to_string())?;
+    surface.set_stroke(Some(Stroke {
+        paint: rgb::Color::new(0, 0, 0).into(),
+        width: 1.0,
+        ..Default::default()
+    }));
+    surface.draw_path(&path);
 
-        let max_width_mm = 70.0;
-        let max_height_mm = 40.0;
-        let page_height_mm = 297.0;
-        let top_margin_mm = 10.0;
-
-        let dpi_x = (image.width as f32 / max_width_mm) * 25.4;
-        let dpi_y = (image.height as f32 / max_height_mm) * 25.4;
-
-        let target_dpi = dpi_x.max(dpi_y);
-
-        let actual_height_pt = (image.height as f32 * 72.0) / target_dpi;
-
-        let top_y_pt = Mm(page_height_mm - top_margin_mm).into_pt().0;
-        let bottom_y_pt = top_y_pt - actual_height_pt;
-
-        let image_id = doc.add_image(&image);
-        ctx.current_ops.push(Op::UseXobject {
-            id: image_id,
-            transform: XObjectTransform {
-                translate_x: Some(Mm(left_margin).into_pt()),
-                translate_y: Some(Pt(bottom_y_pt)),
-                scale_x: None,
-                scale_y: None,
-                dpi: Some(target_dpi),
-                ..Default::default()
-            },
-        });
-
-        ctx.y = Mm((bottom_y_pt / 2.83465) - 10.0);
-    } else {
-        ctx.y = Mm(280.0);
-    }
     Ok(())
 }

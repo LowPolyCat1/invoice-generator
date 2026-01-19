@@ -7,6 +7,7 @@
     <cbc:DueDate>2025-08-15</cbc:DueDate>
     <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
     <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+    <cbc:BuyerReference>Reference</cbc:BuyerReference>
     <cac:AccountingSupplierParty>
         <cac:Party>
             <cac:PartyName>
@@ -29,6 +30,11 @@
             <cac:PartyLegalEntity>
                 <cbc:RegistrationName>Example Corp</cbc:RegistrationName>
             </cac:PartyLegalEntity>
+            <cac:Contact>
+                <cbc:Name>Example Corp</cbc:Name>
+                <cbc:Telephone>+49 123 456789</cbc:Telephone>
+                <cbc:ElectronicMail>contact@examplecorp.com</cbc:ElectronicMail>
+            </cac:Contact>
         </cac:Party>
     </cac:AccountingSupplierParty>
     <cac:AccountingCustomerParty>
@@ -47,8 +53,21 @@
             <cac:PartyLegalEntity>
                 <cbc:RegistrationName>John Doe</cbc:RegistrationName>
             </cac:PartyLegalEntity>
+            <cac:Contact>
+                <cbc:Name>John Doe</cbc:Name>
+                <cbc:ElectronicMail>john.doe@example.com</cbc:ElectronicMail>
+            </cac:Contact>
         </cac:Party>
     </cac:AccountingCustomerParty>
+    <cac:PaymentMeans>
+        <cbc:PaymentMeansCode>30</cbc:PaymentMeansCode>
+        <cac:PayeeFinancialAccount>
+            <cbc:ID>DE00 5001 0517 5407 3249 31</cbc:ID>
+            <cac:FinancialInstitutionBranch>
+                <cbc:ID>INGDDEFFXXX</cbc:ID>
+            </cac:FinancialInstitutionBranch>
+        </cac:PayeeFinancialAccount>
+    </cac:PaymentMeans>
     <cac:TaxTotal>
         <cbc:TaxAmount currencyID="EUR">18.98</cbc:TaxAmount>
         <cac:TaxSubtotal>

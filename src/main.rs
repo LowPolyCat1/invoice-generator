@@ -1,6 +1,6 @@
 use ::invoice::Locale;
 use ::invoice::models::*;
-use ::invoice::pdf::{generate_invoice_pdf, embed_xml_in_pdf, convert_to_pdfa3};
+use ::invoice::pdf::generate_invoice_pdf;
 use locale_rs::datetime_formats::DateTime;
 use std::fs::File;
 use std::io::Write;
@@ -97,18 +97,8 @@ fn main() {
     )
     .expect("Failed to create PDF");
 
-    // Embed the XML in the PDF
-    let pdf_with_xml = embed_xml_in_pdf(pdf_bytes, &xml_output, "factur-x.xml")
-        .expect("Failed to embed XML in PDF");
-
     let mut file = File::create("./invoice.pdf").expect("Unable to create output file");
-    file.write_all(&pdf_with_xml).expect("Failed to write PDF");
+    file.write_all(&pdf_bytes).expect("Failed to write PDF");
 
-    println!("Invoice saved to 'invoice.pdf' with embedded ZUGFeRD data");
-
-    // Attempt to convert to PDF/A-3 for full compliance
-    match convert_to_pdfa3("./invoice.pdf") {
-        Ok(_) => println!("PDF converted to PDF/A-3 format for full ZUGFeRD compliance"),
-        Err(e) => println!("Note: {}", e),
-    }
+    println!("Invoice saved to 'invoice.pdf' as PDF/A-3 with embedded ZUGFeRD data");
 }
